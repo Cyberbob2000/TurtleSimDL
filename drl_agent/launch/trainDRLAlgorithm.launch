@@ -2,6 +2,7 @@
 <launch>
     <!-- This version uses the openai_ros environments -->
     <rosparam command="load" file="$(find drl_agent)/config/my_turtlebot3_maze_params.yaml" />
+    <!-- <rosparam command="load" file="$(find drl_agent)/config/gmapping_turtlebot3.yaml" /> -->
     <!-- Launch the training system -->
-    <node pkg="drl_agent" name="drl_agent" type="evalRandom.py" output="screen"/>
+    <node pkg="drl_agent" name="drl_agent" type="trainDRLAlgorithm.py" output="screen"/>
 </launch>
