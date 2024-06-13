@@ -197,13 +197,13 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
     elif task_env == 'Gmapping-TurtleBot3World-v0':
 
         register(
-            id=task_env,
-            entry_point='openai_ros.task_envs.turtlebot3_gmapping.turtlebot3_gmapping:GmappingTurtleBot3WorldEnv',
+            id=task_env, 
+            entry_point='openai_ros.task_envs.turtlebot3_gmapping.turtlebot3_gmapping_entropy:GmappingTurtleBot3WorldEnv',
             max_episode_steps=100000,
         )
 
         # import our training environment
-        from openai_ros.openai_ros.src.openai_ros.task_envs.turtlebot3_gmapping import turtlebot3_gmapping_entropy
+        from openai_ros.task_envs.turtlebot3_gmapping import turtlebot3_gmapping_entropy
 
     elif task_env == 'WamvNavTwoSetsBuoys-v0':
 

@@ -21,7 +21,7 @@ def main():
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
-        "policy_type": "MlpPolicy",
+        "policy_type": "MultiInputPolicy",
         "total_timesteps": rospy.get_param('/turtlebot3/total_timesteps'),
         "n_steps_before_every_PPO_update": rospy.get_param('/turtlebot3/n_steps_before_every_PPO_update')
     }

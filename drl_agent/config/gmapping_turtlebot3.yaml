@@ -13,7 +13,7 @@ turtlebot3: #namespace
     nsteps: 1000
 
     # model parameters
-    algorithm: "PPO" # DQN, PPO
+    algorithm: "DQN" # DQN, PPO
     total_timesteps: 20000
     n_steps_before_every_PPO_update: 500
     load_model: False
