@@ -25,8 +25,8 @@ def main():
         # Set up W&B
         config = {
             "policy_type": "MlpPolicy",
-            "total_timesteps": 100,
-            "initial_rollouts": 2
+            "total_timesteps": 20000,
+            "n_steps_before_every_PPO_update": 500
         }
         run = wandb.init(
             project="DLLab",
@@ -46,7 +46,7 @@ def main():
             model = PPO.load(modelPath, env)
         else:
             if use_wandb:
-                model = PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["initial_rollouts"])
+                model = PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"])
             else:
                 model = PPO('MlpPolicy', env, verbose=1)
 
