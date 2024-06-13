@@ -11,4 +11,13 @@ turtlebot3: #namespace
     epsilon_discount: 0.999
     nepisodes: 10000
     nsteps: 1000
-    running_step: 0.06 # Time for each steps
+
+    # model parameters
+    algorithm: "PPO" # DQN, PPO
+    total_timesteps: 20000
+    n_steps_before_every_PPO_update: 500
+    load_model: False
+    continueTraining: False
+    saveModel: True
+    use_wandb: True
+
