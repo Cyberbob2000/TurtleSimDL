@@ -40,12 +40,12 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModel(config["algorithm"], modelPath)
+        model = loadModelfunc(config["algorithm"], modelPath)
         inited = False
     else:
         if (continueTraining):
             rospy.logwarn("Continue training")
-            model = loadModel(config["algorithm"], modelPath)
+            model = loadModelfunc(config["algorithm"], modelPath)
         else:
             #model = DQN('MlpPolicy', env, verbose=1)
             model = startModel(config["algorithm"], env, run, config)
@@ -72,7 +72,7 @@ def main():
     rospy.logwarn("Start prediction...")
     evaluate(model, env, inited)
 
-def loadModel(algorithm, modelPath):
+def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
         return DQN.load(modelPath)
     elif algorithm =="PPO":
@@ -88,7 +88,7 @@ def startModel(algorithm, env, run, config):
         buffer_size = 50000
         batch_size = 64
         gamma = 0.99
-        train_freq = (100, "step")
+        train_freq = (200, "step")
         return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}")
     elif algorithm =="PPO":
         return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"])
@@ -138,7 +138,7 @@ def init(algorithm):
     rospack = rospkg.RosPack()
     pkg_path = rospack.get_path('drl_agent')
     outdir = pkg_path + '/training_results'
-    modelPath = outdir + fr"/{algorithm}"
+    modelPath = outdir + fr"/{algorithm}/tak0cjp1/model.zip"
     env = wrappers.Monitor(env, outdir, force=True)
     return env, modelPath
 
