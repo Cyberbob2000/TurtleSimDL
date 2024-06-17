@@ -5,7 +5,7 @@ import numpy as np
 import rospkg
 # ROS packages required
 import rospy
-from gym import wrappers
+from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
@@ -145,7 +145,7 @@ def init(algorithm):
     pkg_path = rospack.get_path('drl_agent')
     outdir = pkg_path + '/training_results'
     modelPath = outdir + fr"/{algorithm}/tak0cjp1/model.zip"
-    env = wrappers.Monitor(env, outdir, force=True)
+    #env = wrappers.Monitor(env, outdir, force=True)
     return env, modelPath
 
 if __name__ == '__main__':

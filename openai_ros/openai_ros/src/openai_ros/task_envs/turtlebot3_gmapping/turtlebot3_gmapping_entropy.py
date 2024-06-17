@@ -191,8 +191,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         based on the action number given.
         :param action: The action integer that set s what movement to do next.
         """
-        print(counter + " Action")
-        counter = counter +1
+        print(str(self.counterSteps) + " Action")
+        self.counterSteps = self.counterSteps +1
         self.save_action = action
         rospy.logdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv

@@ -69,19 +69,20 @@ class RobotGazeboEnv(gym.Env):
 
         rospy.logdebug("END STEP OpenAIROS")
 
-        return obs, reward, done, info
+        return obs, reward, done,False, info
 
     def getObs(self):
         return self._get_obs()
 
-    def reset(self):
+    def reset(self, seed=None, options={}):
         rospy.logdebug("Reseting RobotGazeboEnvironment")
+        self.seed(seed)
         self._reset_sim()
         self._init_env_variables()
         self._update_episode()
         obs = self._get_obs()
         rospy.logdebug("END Reseting RobotGazeboEnvironment")
-        return obs
+        return obs, {}
 
     def close(self):
         """
