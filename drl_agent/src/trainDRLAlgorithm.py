@@ -8,6 +8,7 @@ import rospy
 from gym import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
+from sb3_contrib import QRDQN
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -77,6 +78,8 @@ def loadModelfunc(algorithm, modelPath):
         return DQN.load(modelPath)
     elif algorithm =="PPO":
         return PPO.load(modelPath)
+    elif algorithm=="DDQN":
+        return DDQN.load(modelPath)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
@@ -92,6 +95,9 @@ def startModel(algorithm, env, run, config):
         return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}")
     elif algorithm =="PPO":
         return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"])
+    elif algorithm=="DDQN":
+        policy_kwargs = dict(n_quantiles=50)
+        return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None

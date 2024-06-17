@@ -1,8 +1,8 @@
 import rospy
 import numpy
-from gym import spaces
+from gymnasium import spaces
 from openai_ros.robot_envs import turtlebot3_env
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from geometry_msgs.msg import Vector3
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
@@ -121,6 +121,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.actual_entropy = 0
         self.last_entropy = 1
         rospy.Subscriber("/turtlebot3_slam_gmapping/entropy", Float64, self.subscriber_entropy)
+        self.counterSteps = 0
 
 
     def subscriber_odom(self, data):
@@ -190,7 +191,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         based on the action number given.
         :param action: The action integer that set s what movement to do next.
         """
-
+        print(counter + " Action")
+        counter = counter +1
         self.save_action = action
         rospy.logdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv

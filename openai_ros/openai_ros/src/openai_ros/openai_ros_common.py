@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import gym
+import gymnasium as gym
 from .task_envs.task_envs_list import RegisterOpenAI_Ros_Env
 import roslaunch
 import rospy
