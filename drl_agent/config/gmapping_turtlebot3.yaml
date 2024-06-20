@@ -18,6 +18,6 @@ turtlebot3: #namespace
     n_steps_before_every_PPO_update: 1000
     load_model: False
     continueTraining: False
-    saveModel: False
-    use_wandb: False
+    saveModel: True
+    use_wandb: True
 
