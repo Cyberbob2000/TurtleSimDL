@@ -41,12 +41,12 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath)
+        model = loadModelfunc(config["algorithm"], modelPath + "/model")
         inited = False
     else:
         if (continueTraining):
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath)
+            model = loadModelfunc(config["algorithm"], modelPath + "/model")
         else:
             #model = DQN('MlpPolicy', env, verbose=1)
             model = startModel(config["algorithm"], env, run, config)
@@ -59,19 +59,21 @@ def main():
                         ),
             )
             run.finish()
+            rospy.logwarn("Training finished")
         else:
             model.learn(total_timesteps=config["total_timesteps"])
             
-        rospy.logwarn("Training finished")
-        inited = True
+            rospy.logwarn("Training finished")
 
-        if (saveModel):
-            rospy.logwarn("Saving Model...")
-            model.save(modelPath)
-            rospy.logwarn("Model saved")
+            if (saveModel):
+                rospy.logwarn("Saving Model...")
+                model.save(modelPath + "/model")
+                rospy.logwarn("Model saved")
+                
+        inited = True
         
-    rospy.logwarn("Start prediction...")
-    evaluate(model, env, inited)
+    # rospy.logwarn("Start prediction...")
+    # evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
@@ -145,7 +147,7 @@ def init(algorithm):
     rospack = rospkg.RosPack()
     pkg_path = rospack.get_path('drl_agent')
     outdir = pkg_path + '/training_results'
-    modelPath = outdir + fr"/{algorithm}/tak0cjp1/model.zip"
+    modelPath = outdir + fr"/{algorithm}/"
     env = wrappers.Monitor(env, outdir, force=True)
     return env, modelPath
 
