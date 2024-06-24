@@ -20,6 +20,7 @@ class RobotGazeboEnv(gym.Env):
 
         # Set up ROS related variables
         self.episode_num = 0
+        self.steps = 0
         self.cumulated_episode_reward = 0
         self.reward_pub = rospy.Publisher('/openai/reward', RLExperimentInfo, queue_size=1)
 
@@ -66,9 +67,8 @@ class RobotGazeboEnv(gym.Env):
         info = {}
         reward = self._compute_reward(obs, done)
         self.cumulated_episode_reward += reward
-
         rospy.logdebug("END STEP OpenAIROS")
-
+        self.steps = self.steps +1
         return obs, reward, done,False, info
 
     def getObs(self):
