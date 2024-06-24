@@ -1,6 +1,6 @@
 import rospy
-import gym
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium.utils import seeding
 from .gazebo_connection import GazeboConnection
 from .controllers_connection import ControllersConnection
 #https://bitbucket.org/theconstructcore/theconstruct_msgs/src/master/msg/RLExperimentInfo.msg
@@ -20,6 +20,7 @@ class RobotGazeboEnv(gym.Env):
 
         # Set up ROS related variables
         self.episode_num = 0
+        self.steps = 0
         self.cumulated_episode_reward = 0
         self.reward_pub = rospy.Publisher('/openai/reward', RLExperimentInfo, queue_size=1)
 
@@ -66,22 +67,22 @@ class RobotGazeboEnv(gym.Env):
         info = {}
         reward = self._compute_reward(obs, done)
         self.cumulated_episode_reward += reward
-
         rospy.logdebug("END STEP OpenAIROS")
-
-        return obs, reward, done, info
+        self.steps = self.steps +1
+        return obs, reward, done,False, info
 
     def getObs(self):
         return self._get_obs()
 
-    def reset(self):
+    def reset(self, seed=None, options={}):
         rospy.logdebug("Reseting RobotGazeboEnvironment")
+        self.seed(seed)
         self._reset_sim()
         self._init_env_variables()
         self._update_episode()
         obs = self._get_obs()
         rospy.logdebug("END Reseting RobotGazeboEnvironment")
-        return obs
+        return obs, {}
 
     def close(self):
         """

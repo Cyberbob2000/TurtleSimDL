@@ -1,8 +1,8 @@
 import rospy
 import numpy
-from gym import spaces
+from gymnasium import spaces
 from openai_ros.robot_envs import turtlebot3_env
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from geometry_msgs.msg import Vector3
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
@@ -14,6 +14,8 @@ from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Odometry
 import math
 from std_msgs.msg import Float64, Bool
+import ros_numpy
+import matplotlib.pyplot as plt
 
 class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
@@ -91,7 +93,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We only use two integers
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
-        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'coverage': spaces.Box(low_coverage, high_coverage)})
+        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'map': spaces.Box(low=0, high=255,
+                                            shape=(1, 96, 96), dtype=numpy.uint8),'pose':spaces.Box(low = numpy.ones((5))*-15,high = numpy.ones((5))*15 )})
 
 
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
@@ -111,6 +114,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.Subscriber("/gazebo/performance_metrics", PerformanceMetrics, self.set_rate_real_time)
 
         self.map_coverage = 0
+        self.map = numpy.zeros((96,96,1))
         self.last_coverage = 0
         rospy.Subscriber('/map', OccupancyGrid, self.subscriber_map)
 
@@ -125,9 +129,32 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
     def subscriber_odom(self, data):
         self.covariance = data.pose.covariance
+        self.x = data.pose.pose.position.x
+        self.y = data.pose.pose.position.y
+        self.orx = data.pose.pose.orientation.x
+        self.ory = data.pose.pose.orientation.y
+        self.orw = data.pose.pose.orientation.w
 
 
     def subscriber_map(self, data):
+        #numpy array 384x384 with -1 for unknown, 100, for occupied and 0 for free
+        pc = ros_numpy.numpify(data)
+        pc = pc.filled(-1)
+        pc[pc == 0] = 125
+        pc[pc == -1] = 0
+        pc = pc.astype(numpy.uint8)
+        pc[pc == 100] = 255
+
+        #now pc has 0 for unknown, 125 for free and 255 for occupied
+        pc = pc.reshape(96, 4, 96, 4).max(axis=(1, 3))
+        image_with_channel = numpy.expand_dims(pc, axis=0)
+        #add extra dimension to map, so stable baselines recognizes it as 1 channel 0-255 greyscale image
+        #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
+        #plt.imshow(pc, cmap='viridis', interpolation='none')
+        #plt.colorbar(label='Value')
+        #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
+        #plt.show()
+        self.map = image_with_channel
         neg_count = len(list(filter(lambda x: (x < 0), data.data)))
         total = len(data.data)
         completed = 0
@@ -190,7 +217,6 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         based on the action number given.
         :param action: The action integer that set s what movement to do next.
         """
-
         self.save_action = action
         rospy.logdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
@@ -254,7 +280,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         reward = 0.001
         if not done:
-            obs_coverage = observations['coverage'][0]
+            obs_coverage = self.map_coverage
             delta_coverage = obs_coverage - self.last_coverage
             if delta_coverage > 0:
                 reward = 1 + math.tanh(1/d_opt)
@@ -304,7 +330,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         new_ranges = [discretized_ranges[4], discretized_ranges[5], discretized_ranges[0], discretized_ranges[2], discretized_ranges[3]]
 
-        return {"laser": new_ranges, "coverage": [self.map_coverage]}
+        return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
 
 
     def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import gym
+import gymnasium
 from .task_envs.task_envs_list import RegisterOpenAI_Ros_Env
 import roslaunch
 import rospy
@@ -24,11 +24,11 @@ def StartOpenAI_ROS_Environment(task_and_robot_environment_name):
     rospy.logwarn("Env: {} will be imported".format(
         task_and_robot_environment_name))
     result = RegisterOpenAI_Ros_Env(task_env=task_and_robot_environment_name,
-                                    max_episode_steps=1000000)
+                                    max_episode_steps=1000)
 
     if result:
         rospy.logwarn("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
-        env = gym.make(task_and_robot_environment_name)
+        env = gymnasium.make(task_and_robot_environment_name)
     else:
         rospy.logwarn("Something Went wrong in the register")
         env = None

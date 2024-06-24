@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from gym.envs.registration import register
-from gym import envs
+from gymnasium.envs.registration import register
+from gymnasium import envs
+import gymnasium
 
 
 def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
@@ -187,7 +188,7 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
         register(
             id=task_env,
             entry_point='openai_ros.task_envs.turtlebot3.turtlebot3_world:TurtleBot3WorldEnv',
-            max_episode_steps=100000,
+            max_episode_steps=2000,
         )
 
         # import our training environment
@@ -199,7 +200,7 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
         register(
             id=task_env, 
             entry_point='openai_ros.task_envs.turtlebot3_gmapping.turtlebot3_gmapping_entropy:GmappingTurtleBot3WorldEnv',
-            max_episode_steps=100000,
+            max_episode_steps=2000,
         )
 
         # import our training environment
@@ -226,6 +227,10 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
         # We check that it was really registered
         supported_gym_envs = GetAllRegisteredGymEnvs()
         #print("REGISTERED GYM ENVS===>"+str(supported_gym_envs))
+        print ("Test12345")
+        print(supported_gym_envs)
+        print(task_env in supported_gym_envs)
+        print("Test12345")
         assert (task_env in supported_gym_envs), "The Task_Robot_ENV given is not Registered ==>" + \
             str(task_env)
 
@@ -237,8 +242,8 @@ def GetAllRegisteredGymEnvs():
     Returns a List of all the registered Envs in the system
     return EX: ['Copy-v0', 'RepeatCopy-v0', 'ReversedAddition-v0', ... ]
     """
-
-    all_envs = envs.registry.all()
-    env_ids = [env_spec.id for env_spec in all_envs]
+    #all_envs = envs.registry.all() 
+    #env_ids = [env_spec.id for env_spec in all_envs]
+    env_ids = gymnasium.envs.registry.keys()
 
     return env_ids
