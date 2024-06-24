@@ -51,3 +51,4 @@ qtcreator-*
 CATKIN_IGNORE
 
 drl_agent/training_results/
+__pycache__/

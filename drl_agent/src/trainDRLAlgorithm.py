@@ -27,6 +27,7 @@ def main():
         "n_steps_before_every_PPO_update": rospy.get_param('/turtlebot3/n_steps_before_every_PPO_update')
     }
     
+    run = None
     if use_wandb:
         # Set up W&B
         run = wandb.init(
@@ -41,12 +42,12 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath)
+        model = loadModelfunc(config["algorithm"], modelPath + "/model")
         inited = False
     else:
         if (continueTraining):
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath)
+            model = loadModelfunc(config["algorithm"], modelPath + "/model")
         else:
             #model = DQN('MlpPolicy', env, verbose=1)
             model = startModel(config["algorithm"], env, run, config)
@@ -59,19 +60,21 @@ def main():
                         ),
             )
             run.finish()
+            rospy.logwarn("Training finished")
         else:
             model.learn(total_timesteps=config["total_timesteps"])
             
-        rospy.logwarn("Training finished")
-        inited = True
+            rospy.logwarn("Training finished")
 
-        if (saveModel):
-            rospy.logwarn("Saving Model...")
-            model.save(modelPath)
-            rospy.logwarn("Model saved")
+            if (saveModel):
+                rospy.logwarn("Saving Model...")
+                model.save(modelPath + "/model")
+                rospy.logwarn("Model saved")
+                
+        inited = True
         
-    rospy.logwarn("Start prediction...")
-    evaluate(model, env, inited)
+    # rospy.logwarn("Start prediction...")
+    # evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
@@ -92,9 +95,15 @@ def startModel(algorithm, env, run, config):
         batch_size = 64
         gamma = 0.99
         train_freq = (200, "step")
-        return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}")
+        if run:
+            return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}")
+        else:
+            return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1)
     elif algorithm =="PPO":
-        return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"])
+        if run:
+            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"])
+        else:
+            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"])
     elif algorithm=="DDQN":
         policy_kwargs = dict(n_quantiles=50)
         return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
@@ -144,8 +153,8 @@ def init(algorithm):
     rospack = rospkg.RosPack()
     pkg_path = rospack.get_path('drl_agent')
     outdir = pkg_path + '/training_results'
-    modelPath = outdir + fr"/{algorithm}/tak0cjp1/model.zip"
-    #env = wrappers.Monitor(env, outdir, force=True)
+    modelPath = outdir + fr"/{algorithm}/"
+    env = wrappers.Monitor(env, outdir, force=True)
     return env, modelPath
 
 if __name__ == '__main__':
