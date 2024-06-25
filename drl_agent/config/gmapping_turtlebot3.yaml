@@ -1,8 +1,8 @@
 turtlebot3: #namespace
     task_and_robot_environment_name: 'Gmapping-TurtleBot3World-v0'
     ros_ws_abspath: "/root/catkin_ws"
-    running_step: 0.04 # amount of time the control will be executed
-    pos_step: 0.016     # increment in position for each command
+    running_step: 0.0 # amount of time the control will be executed #not used apparently
+    pos_step: 0.0    # increment in position for each command # not used apparently
     
     #qlearn parameters
     alpha: 0.1
@@ -14,7 +14,7 @@ turtlebot3: #namespace
 
     # model parameters
     algorithm: "DDQN" # DQN, PPO, DDQN
-    total_timesteps: 200000
+    total_timesteps: 100000
     n_steps_before_every_PPO_update: 1000
     load_model: False
     continueTraining: False

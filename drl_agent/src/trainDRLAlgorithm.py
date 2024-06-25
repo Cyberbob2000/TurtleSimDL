@@ -106,7 +106,10 @@ def startModel(algorithm, env, run, config):
             return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"])
     elif algorithm=="DDQN":
         policy_kwargs = dict(n_quantiles=50)
-        return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
+        if run:
+            return QRDQN(config["policy_type"], env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}")
+        else:
+            return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
@@ -154,7 +157,7 @@ def init(algorithm):
     pkg_path = rospack.get_path('drl_agent')
     outdir = pkg_path + '/training_results'
     modelPath = outdir + fr"/{algorithm}/"
-    env = wrappers.Monitor(env, outdir, force=True)
+    #env = wrappers.Monitor(env, outdir, force=True)
     return env, modelPath
 
 if __name__ == '__main__':

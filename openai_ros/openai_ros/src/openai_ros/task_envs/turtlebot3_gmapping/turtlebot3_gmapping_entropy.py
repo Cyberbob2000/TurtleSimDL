@@ -93,8 +93,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We only use two integers
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
-        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'map': spaces.Box(low=0, high=255,
-                                            shape=(1, 96, 96), dtype=numpy.uint8),'pose':spaces.Box(low = numpy.ones((5))*-15,high = numpy.ones((5))*15 )})
+        self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255,
+                                            shape=(1, 96, 96), dtype=numpy.uint8)})
 
 
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
@@ -110,7 +110,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.cumulated_steps = 0.0
         self.laser_filtered_pub = rospy.Publisher('/turtlebot3/laser/scan_filtered', LaserScan, queue_size=1)
-        self.update_rate_real = 10
+        self.update_rate_real = 5
         rospy.Subscriber("/gazebo/performance_metrics", PerformanceMetrics, self.set_rate_real_time)
 
         self.map_coverage = 0
@@ -124,37 +124,57 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.actual_entropy = 0
         self.last_entropy = 1
+        self.x = 0
+        self.y = 0
+        self.dirx = 1
+        self.diry = 0
         rospy.Subscriber("/turtlebot3_slam_gmapping/entropy", Float64, self.subscriber_entropy)
 
 
     def subscriber_odom(self, data):
         self.covariance = data.pose.covariance
         self.x = data.pose.pose.position.x
+        #print(f"X:{self.x},Y:{self.y}")
         self.y = data.pose.pose.position.y
         self.orx = data.pose.pose.orientation.x
         self.ory = data.pose.pose.orientation.y
         self.orw = data.pose.pose.orientation.w
+        self.orz = data.pose.pose.orientation.z
+        self.dirx = round(1-2*(self.ory*self.ory+self.orz*self.orz))
+        self.diry = round(2*(self.orx*self.ory+self.orw*self.orz))
+        #print(f"X:{self.orx},Y:{self.ory},Z:{self.orz},W:{self.orw}")
+        #print(f"Direction:X{1-2*(self.ory*self.ory+self.orz*self.orz)}")
+        #print(f"Direction:Y:{2*(self.orx*self.ory+self.orw*self.orz)}")
+        #print(f"Direction:Z:{2*(self.orx*self.orz-self.orw*self.ory)}")
+        #print(f"Direction:{self.dirx},{self.diry}")
 
 
     def subscriber_map(self, data):
         #numpy array 384x384 with -1 for unknown, 100, for occupied and 0 for free
         pc = ros_numpy.numpify(data)
         pc = pc.filled(-1)
-        pc[pc == 0] = 125
+        pc[pc == 0] = 140
         pc[pc == -1] = 0
         pc = pc.astype(numpy.uint8)
         pc[pc == 100] = 255
 
         #now pc has 0 for unknown, 125 for free and 255 for occupied
         pc = pc.reshape(96, 4, 96, 4).max(axis=(1, 3))
-        image_with_channel = numpy.expand_dims(pc, axis=0)
+        image_x_robot = int((self.x+10)/20 * 96)
+        image_y_robot = int((self.y+10)/20 *96)
+        pc[image_y_robot, image_x_robot] = 70
+        #This paints the direction the robot is heading to, it should not come to the case of taking modulu here but need to rework this
         #add extra dimension to map, so stable baselines recognizes it as 1 channel 0-255 greyscale image
+        pc[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 90
+        image_with_channel = numpy.expand_dims(pc, axis=0)
+        self.map = image_with_channel
+
         #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
         #plt.imshow(pc, cmap='viridis', interpolation='none')
         #plt.colorbar(label='Value')
         #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
         #plt.show()
-        self.map = image_with_channel
+
         neg_count = len(list(filter(lambda x: (x < 0), data.data)))
         total = len(data.data)
         completed = 0
@@ -170,9 +190,9 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
     def set_rate_real_time(self, data):
         if (data.real_time_factor > 0):
-            self.update_rate_real = data.real_time_factor * 10
+            self.update_rate_real = data.real_time_factor * 5
         else:
-            self.update_rate_real = 10
+            self.update_rate_real = 5
 
 
     def _set_init_pose(self):
@@ -260,7 +280,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
     def _is_done(self, observations):
 
-        for obs in observations['laser']:
+        #for obs in observations['laser']:
+        for obs in self.obsLaser:
             if obs < self.min_laser_value / self.max_laser_value:
                 self._episode_done = True
 
@@ -287,7 +308,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
             self.last_coverage = obs_coverage
         else:
-            reward = -100
+            reward = -1
             #reward = -1*self.end_episode_points
 
 
@@ -330,7 +351,9 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         new_ranges = [discretized_ranges[4], discretized_ranges[5], discretized_ranges[0], discretized_ranges[2], discretized_ranges[3]]
 
-        return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
+        #return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
+        self.obsLaser = new_ranges
+        return {"map": self.map}
 
 
     def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):
