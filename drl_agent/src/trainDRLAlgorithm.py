@@ -42,7 +42,7 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/model")
+        model = loadModelfunc(config["algorithm"], modelPath + "/mapwithpose100k/model.zip")
         inited = False
     else:
         if (continueTraining):
@@ -74,7 +74,7 @@ def main():
         inited = True
         
     # rospy.logwarn("Start prediction...")
-    # evaluate(model, env, inited)
+    evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
@@ -82,7 +82,7 @@ def loadModelfunc(algorithm, modelPath):
     elif algorithm =="PPO":
         return PPO.load(modelPath)
     elif algorithm=="DDQN":
-        return DDQN.load(modelPath)
+        return QRDQN.load(modelPath)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
@@ -128,17 +128,17 @@ def evaluate(model, env, inited, num_episodes=10):
 
         #Hack needed to enable evaluation post training :/
         if inited:
-            obs = env.getObs()
+            obs,info = env.getObs()
             inited = False
             rospy.logwarn(str(obs))
         else:
-            obs = env.reset()
+            obs,info = env.reset()
             
             
         done = False
         while not done:
             action, _states = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
+            obs, reward, done,_, info = env.step(action)
             episode_rewards.append(reward)
 
         all_episode_rewards.append(sum(episode_rewards))
