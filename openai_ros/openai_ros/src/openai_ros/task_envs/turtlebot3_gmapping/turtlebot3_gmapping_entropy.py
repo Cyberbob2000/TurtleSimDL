@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry
 import math
 from std_msgs.msg import Float64, Bool
 import ros_numpy
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
