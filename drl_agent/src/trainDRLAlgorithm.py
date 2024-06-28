@@ -12,7 +12,7 @@ from sb3_contrib import QRDQN
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
-
+from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
 
 def main():
     loadModel = rospy.get_param('/turtlebot3/load_model')
@@ -53,11 +53,16 @@ def main():
             model = startModel(config["algorithm"], env, run, config)
         
         if use_wandb:
-            model.learn(total_timesteps=config["total_timesteps"],
-                        callback=WandbCallback(
+            print(modelPath)
+            checkpoint_callback = CheckpointCallback(save_freq=10000, save_path=modelPath,
+                                         name_prefix='rl_model')
+            wandb_callback = WandbCallback(
                             model_save_path=f"{modelPath}/{run.id}",
                             verbose=2,
-                        ),
+                        )
+            list_callback = CallbackList([checkpoint_callback,wandb_callback])
+            model.learn(total_timesteps=config["total_timesteps"],
+                        callback=list_callback,
             )
             run.finish()
             rospy.logwarn("Training finished")

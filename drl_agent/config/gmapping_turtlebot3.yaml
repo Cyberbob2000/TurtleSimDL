@@ -14,7 +14,7 @@ turtlebot3: #namespace
 
     # model parameters
     algorithm: "DDQN" # DQN, PPO, DDQN
-    total_timesteps: 100000
+    total_timesteps: 500000
     n_steps_before_every_PPO_update: 1000
     load_model: False
     continueTraining: False
