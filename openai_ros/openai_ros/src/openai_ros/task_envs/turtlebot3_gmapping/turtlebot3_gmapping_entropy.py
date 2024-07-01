@@ -298,8 +298,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             if cov > 0:
                 d_opt += math.log(cov)
         d_opt = math.exp(d_opt / len(self.covariance))
-
-        reward = 0.001
+        reward = 0
         if not done:
             obs_coverage = self.map_coverage
             delta_coverage = obs_coverage - self.last_coverage
@@ -308,15 +307,15 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
             self.last_coverage = obs_coverage
         else:
-            reward = -1
+            reward = -5
             #reward = -1*self.end_episode_points
 
 
-        rospy.logdebug("reward=" + str(reward))
+        print("reward=" + str(reward))
         self.cumulated_reward += reward
-        rospy.logdebug("Cumulated_reward=" + str(self.cumulated_reward))
+        print("Cumulated_reward=" + str(self.cumulated_reward))
         self.cumulated_steps += 1
-        rospy.logdebug("Cumulated_steps=" + str(self.cumulated_steps))
+        print("Cumulated_steps=" + str(self.cumulated_steps))
 
         return reward
 

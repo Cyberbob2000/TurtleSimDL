@@ -42,7 +42,7 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/mapwithpose100k/model.zip")
+        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_500000_steps.zip")
         inited = False
     else:
         if (continueTraining):
