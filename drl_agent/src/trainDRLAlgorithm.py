@@ -54,7 +54,7 @@ def main():
         
         if use_wandb:
             print(modelPath)
-            checkpoint_callback = CheckpointCallback(save_freq=10000, save_path=modelPath,
+            checkpoint_callback = CheckpointCallback(save_freq=20000, save_path=modelPath,
                                          name_prefix='rl_model')
             wandb_callback = WandbCallback(
                             model_save_path=f"{modelPath}/{run.id}",
