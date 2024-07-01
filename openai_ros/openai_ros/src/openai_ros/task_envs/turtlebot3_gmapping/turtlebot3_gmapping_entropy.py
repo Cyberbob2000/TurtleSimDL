@@ -292,29 +292,39 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
 
     def _compute_reward(self, observations, done):
-
+        self.cumulated_steps += 1
         d_opt = 0
         for cov in self.covariance:
             if cov > 0:
                 d_opt += math.log(cov)
+        #Stop divide by zero error
+        if len(self.covariance) == 0:
+            return 0
         d_opt = math.exp(d_opt / len(self.covariance))
-        reward = 0
         if not done:
             obs_coverage = self.map_coverage
             delta_coverage = obs_coverage - self.last_coverage
-            if delta_coverage > 0:
-                reward = math.tanh(1/d_opt)
-
             self.last_coverage = obs_coverage
+            #Some new part of map is discovered
+            if delta_coverage > 0:
+                #stop division by Zero
+                if (d_opt == 0):
+                    return 0
+                reward = math.tanh(1/d_opt)
+                self.cumulated_reward += reward
+                return reward
+            else:
+                #If nothing of map is discoverd -> no reward
+                return 0
         else:
-            reward = 0
+            #If robot crashed into reward no negative penalty because of driving circles
+            return 0 
             #reward = -1*self.end_episode_points
 
 
         #print("reward=" + str(reward))
         self.cumulated_reward += reward
         #print("Cumulated_reward=" + str(self.cumulated_reward))
-        self.cumulated_steps += 1
         #print("Cumulated_steps=" + str(self.cumulated_steps))
 
         return reward
