@@ -303,19 +303,19 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             obs_coverage = self.map_coverage
             delta_coverage = obs_coverage - self.last_coverage
             if delta_coverage > 0:
-                reward = 1 + math.tanh(1/d_opt)
+                reward = math.tanh(1/d_opt)
 
             self.last_coverage = obs_coverage
         else:
-            reward = -5
+            reward = 0
             #reward = -1*self.end_episode_points
 
 
-        print("reward=" + str(reward))
+        #print("reward=" + str(reward))
         self.cumulated_reward += reward
-        print("Cumulated_reward=" + str(self.cumulated_reward))
+        #print("Cumulated_reward=" + str(self.cumulated_reward))
         self.cumulated_steps += 1
-        print("Cumulated_steps=" + str(self.cumulated_steps))
+        #print("Cumulated_steps=" + str(self.cumulated_steps))
 
         return reward
 
