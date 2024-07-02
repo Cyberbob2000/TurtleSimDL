@@ -112,9 +112,9 @@ def startModel(algorithm, env, run, config):
     elif algorithm=="DDQN":
         policy_kwargs = dict(n_quantiles=50)
         if run:
-            return QRDQN(config["policy_type"], env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}")
+            return QRDQN(config["policy_type"], env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}", exploration_fraction = 0.1, exploration_final_eps=0.1)
         else:
-            return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
+            return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1,  exploration_fraction = 0.1, exploration_final_eps=0.1)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None

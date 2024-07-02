@@ -363,6 +363,11 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         #return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
         self.obsLaser = new_ranges
+        #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
+        #plt.imshow(self.map[0], cmap='viridis', interpolation='none')
+       # plt.colorbar(label='Value')
+        #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
+        #plt.show()
         return {"map": self.map}
 
 
