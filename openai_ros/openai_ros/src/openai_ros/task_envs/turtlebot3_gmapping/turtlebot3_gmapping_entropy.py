@@ -308,10 +308,11 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             #Some new part of map is discovered
             if delta_coverage > 0:
                 #stop division by Zero
-                if (d_opt == 0):
-                    return 0
-                reward = math.tanh(1/d_opt)
+                #if (d_opt == 0):
+                    #return 0
+                reward = delta_coverage #math.tanh(1/d_opt)
                 self.cumulated_reward += reward
+                #print(f"Sum Reward episode: {self.cumulated_reward}")
                 return reward
             else:
                 #If nothing of map is discoverd -> no reward
