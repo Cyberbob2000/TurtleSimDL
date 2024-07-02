@@ -188,7 +188,7 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
         register(
             id=task_env,
             entry_point='openai_ros.task_envs.turtlebot3.turtlebot3_world:TurtleBot3WorldEnv',
-            max_episode_steps=2000,
+            max_episode_steps=500,
         )
 
         # import our training environment
@@ -200,7 +200,7 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
         register(
             id=task_env, 
             entry_point='openai_ros.task_envs.turtlebot3_gmapping.turtlebot3_gmapping_entropy:GmappingTurtleBot3WorldEnv',
-            max_episode_steps=2000,
+            max_episode_steps=500,
         )
 
         # import our training environment

@@ -12,7 +12,7 @@ from sb3_contrib import QRDQN
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
-
+from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
 
 def main():
     loadModel = rospy.get_param('/turtlebot3/load_model')
@@ -42,7 +42,7 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/model")
+        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_500000_steps.zip")
         inited = False
     else:
         if (continueTraining):
@@ -53,11 +53,16 @@ def main():
             model = startModel(config["algorithm"], env, run, config)
         
         if use_wandb:
-            model.learn(total_timesteps=config["total_timesteps"],
-                        callback=WandbCallback(
+            print(modelPath)
+            checkpoint_callback = CheckpointCallback(save_freq=20000, save_path=modelPath,
+                                         name_prefix='rl_model')
+            wandb_callback = WandbCallback(
                             model_save_path=f"{modelPath}/{run.id}",
                             verbose=2,
-                        ),
+                        )
+            list_callback = CallbackList([checkpoint_callback,wandb_callback])
+            model.learn(total_timesteps=config["total_timesteps"],
+                        callback=list_callback,
             )
             run.finish()
             rospy.logwarn("Training finished")
@@ -74,7 +79,7 @@ def main():
         inited = True
         
     # rospy.logwarn("Start prediction...")
-    # evaluate(model, env, inited)
+    evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
@@ -82,7 +87,7 @@ def loadModelfunc(algorithm, modelPath):
     elif algorithm =="PPO":
         return PPO.load(modelPath)
     elif algorithm=="DDQN":
-        return DDQN.load(modelPath)
+        return QRDQN.load(modelPath)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
@@ -106,7 +111,10 @@ def startModel(algorithm, env, run, config):
             return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"])
     elif algorithm=="DDQN":
         policy_kwargs = dict(n_quantiles=50)
-        return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
+        if run:
+            return QRDQN(config["policy_type"], env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}")
+        else:
+            return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
@@ -125,17 +133,17 @@ def evaluate(model, env, inited, num_episodes=10):
 
         #Hack needed to enable evaluation post training :/
         if inited:
-            obs = env.getObs()
+            obs,info = env.getObs()
             inited = False
             rospy.logwarn(str(obs))
         else:
-            obs = env.reset()
+            obs,info = env.reset()
             
             
         done = False
         while not done:
             action, _states = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
+            obs, reward, done,_, info = env.step(action)
             episode_rewards.append(reward)
 
         all_episode_rewards.append(sum(episode_rewards))
@@ -154,7 +162,7 @@ def init(algorithm):
     pkg_path = rospack.get_path('drl_agent')
     outdir = pkg_path + '/training_results'
     modelPath = outdir + fr"/{algorithm}/"
-    env = wrappers.Monitor(env, outdir, force=True)
+    #env = wrappers.Monitor(env, outdir, force=True)
     return env, modelPath
 
 if __name__ == '__main__':
