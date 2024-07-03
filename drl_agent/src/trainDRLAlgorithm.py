@@ -9,7 +9,8 @@ from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
-
+from stable_baselines3.common.vec_env import DummyVecEnv
+from dict_mini_resnet import DictMinimalResNet
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
@@ -110,11 +111,11 @@ def startModel(algorithm, env, run, config):
         else:
             return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"])
     elif algorithm=="DDQN":
-        policy_kwargs = dict(n_quantiles=50)
+        policy_kwargs = dict(n_quantiles=50, features_extractor_class=DictMinimalResNet, features_extractor_kwargs=dict(features_dim=128))
         if run:
-            return QRDQN(config["policy_type"], env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}", exploration_fraction = 0.1, exploration_final_eps=0.1)
+            return QRDQN("MultiInputPolicy", env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}", exploration_fraction = 0.1, exploration_final_eps=0.1)
         else:
-            return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1,  exploration_fraction = 0.1, exploration_final_eps=0.1)
+            return QRDQN("MultiInputPolicy", env, policy_kwargs=policy_kwargs, verbose=1,  exploration_fraction = 0.1, exploration_final_eps=0.1)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
