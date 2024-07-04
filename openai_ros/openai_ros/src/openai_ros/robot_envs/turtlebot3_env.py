@@ -238,8 +238,8 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         #self.wait_until_twist_achieved(cmd_vel_value,epsilon,update_rate)
         # Weplace a waitof certain amiunt of time, because this twist achived doesnt work properly
         #time.sleep(0.2)
-        print(update_rate)
-        print("Update rate")
+        #print(update_rate)
+        #print("Update rate")
         rate = rospy.Rate(update_rate/4)
         rate.sleep()
 
