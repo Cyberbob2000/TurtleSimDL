@@ -50,7 +50,7 @@ def main():
             rospy.logwarn("Continue training")
             model = loadModelfunc(config["algorithm"], modelPath + "/model")
         else:
-            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resenet'))
+            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
         
         if use_wandb:
             print(modelPath)
