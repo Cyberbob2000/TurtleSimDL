@@ -21,4 +21,4 @@ turtlebot3: #namespace
     continueTraining: False
     saveModel: True
     use_wandb: True
-    use_resent: False
+    use_resnet: False
