@@ -59,7 +59,7 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         # It doesnt use namespace
         self.robot_name_space = ""
 
-        self.update_rate_real = 10
+        self.update_rate_real = 0.5
         rospy.Subscriber("/gazebo/performance_metrics", PerformanceMetrics, self.set_rate_real_time)
         
         # We launch the init function of the Parent Class robot_gazebo_env.RobotGazeboEnv
@@ -92,9 +92,9 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
     # ----------------------------
     def set_rate_real_time(self, data):
         if (data.real_time_factor > 0):
-            self.update_rate_real = data.real_time_factor * 10
+            self.update_rate_real = data.real_time_factor * 0.5
         else:
-            self.update_rate_real = 10
+            self.update_rate_real = 0.5
         #print(self.update_rate_real)
 
     def _check_all_systems_ready(self):
@@ -219,7 +219,7 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
 
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
-    def move_base(self, linear_speed, angular_speed, epsilon=0.05, update_rate=10):
+    def move_base(self, linear_speed, angular_speed, epsilon=0.05, update_rate=0.5):
         """
         It will move the base based on the linear and angular speeds given.
         It will wait untill those twists are achived reading from the odometry topic.
@@ -230,15 +230,17 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         :return:
         """
         cmd_vel_value = Twist()
-        cmd_vel_value.linear.x = linear_speed
-        cmd_vel_value.angular.z = angular_speed
+        cmd_vel_value.linear.x = linear_speed 
+        cmd_vel_value.angular.z = angular_speed 
         rospy.logdebug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
         self._check_publishers_connection()
         self._cmd_vel_pub.publish(cmd_vel_value)
         #self.wait_until_twist_achieved(cmd_vel_value,epsilon,update_rate)
         # Weplace a waitof certain amiunt of time, because this twist achived doesnt work properly
         #time.sleep(0.2)
-        rate = rospy.Rate(update_rate)
+        #print(update_rate)
+        #print("Update rate")
+        rate = rospy.Rate(update_rate/4)
         rate.sleep()
 
     def wait_until_twist_achieved(self, cmd_vel_value, epsilon, update_rate):
