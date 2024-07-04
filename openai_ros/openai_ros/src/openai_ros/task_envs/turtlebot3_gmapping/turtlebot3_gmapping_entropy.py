@@ -15,7 +15,7 @@ from nav_msgs.msg import Odometry
 import math
 from std_msgs.msg import Float64, Bool
 import ros_numpy
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
@@ -153,19 +153,19 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         #numpy array 384x384 with -1 for unknown, 100, for occupied and 0 for free
         pc = ros_numpy.numpify(data)
         pc = pc.filled(-1)
-        pc[pc == 0] = 140
+        pc[pc == 0] = 1
         pc[pc == -1] = 0
         pc = pc.astype(numpy.uint8)
-        pc[pc == 100] = 255
+        pc[pc == 100] = 50
 
         #now pc has 0 for unknown, 125 for free and 255 for occupied
         pc = pc.reshape(96, 4, 96, 4).max(axis=(1, 3))
-        image_x_robot = int((self.x+10)/20 * 96)
-        image_y_robot = int((self.y+10)/20 *96)
-        pc[image_y_robot, image_x_robot] = 70
+        image_x_robot = round((self.x+10)/20 * 96)
+        image_y_robot = round((self.y+10)/20 *96)
+        pc[image_y_robot, image_x_robot] = 255
         #This paints the direction the robot is heading to, it should not come to the case of taking modulu here but need to rework this
         #add extra dimension to map, so stable baselines recognizes it as 1 channel 0-255 greyscale image
-        pc[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 90
+        pc[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 200
         image_with_channel = numpy.expand_dims(pc, axis=0)
         self.map = image_with_channel
 
@@ -363,11 +363,11 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         #return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
         self.obsLaser = new_ranges
-        #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
-        #plt.imshow(self.map[0], cmap='viridis', interpolation='none')
-       # plt.colorbar(label='Value')
-        #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
-        #plt.show()
+        plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
+        plt.imshow(self.map[0], cmap='viridis', interpolation='none')
+        plt.colorbar(label='Value')
+        plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
+        plt.show()
         return {"map": self.map}
 
 
