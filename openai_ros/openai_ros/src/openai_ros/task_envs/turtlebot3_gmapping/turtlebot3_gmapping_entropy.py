@@ -93,8 +93,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We only use two integers
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
-        self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255,
-                                            shape=(1, 96, 96), dtype=numpy.uint8)})
+        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'coverage': spaces.Box(low_coverage, high_coverage)})
+        # self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255, shape=(1, 96, 96), dtype=numpy.uint8)})
 
 
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
@@ -110,7 +110,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.cumulated_steps = 0.0
         self.laser_filtered_pub = rospy.Publisher('/turtlebot3/laser/scan_filtered', LaserScan, queue_size=1)
-        self.update_rate_real = 5
+        self.update_rate_real = 10
         rospy.Subscriber("/gazebo/performance_metrics", PerformanceMetrics, self.set_rate_real_time)
 
         self.map_coverage = 0
@@ -150,30 +150,30 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
 
     def subscriber_map(self, data):
-        #numpy array 384x384 with -1 for unknown, 100, for occupied and 0 for free
-        pc = ros_numpy.numpify(data)
-        pc = pc.filled(-1)
-        pc[pc == 0] = 140
-        pc[pc == -1] = 0
-        pc = pc.astype(numpy.uint8)
-        pc[pc == 100] = 255
+        # #numpy array 384x384 with -1 for unknown, 100, for occupied and 0 for free
+        # pc = ros_numpy.numpify(data)
+        # pc = pc.filled(-1)
+        # pc[pc == 0] = 140
+        # pc[pc == -1] = 0
+        # pc = pc.astype(numpy.uint8)
+        # pc[pc == 100] = 255
 
-        #now pc has 0 for unknown, 125 for free and 255 for occupied
-        pc = pc.reshape(96, 4, 96, 4).max(axis=(1, 3))
-        image_x_robot = int((self.x+10)/20 * 96)
-        image_y_robot = int((self.y+10)/20 *96)
-        pc[image_y_robot, image_x_robot] = 70
-        #This paints the direction the robot is heading to, it should not come to the case of taking modulu here but need to rework this
-        #add extra dimension to map, so stable baselines recognizes it as 1 channel 0-255 greyscale image
-        pc[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 90
-        image_with_channel = numpy.expand_dims(pc, axis=0)
-        self.map = image_with_channel
+        # #now pc has 0 for unknown, 125 for free and 255 for occupied
+        # pc = pc.reshape(96, 4, 96, 4).max(axis=(1, 3))
+        # image_x_robot = int((self.x+10)/20 * 96)
+        # image_y_robot = int((self.y+10)/20 *96)
+        # pc[image_y_robot, image_x_robot] = 70
+        # #This paints the direction the robot is heading to, it should not come to the case of taking modulu here but need to rework this
+        # #add extra dimension to map, so stable baselines recognizes it as 1 channel 0-255 greyscale image
+        # pc[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 90
+        # image_with_channel = numpy.expand_dims(pc, axis=0)
+        # self.map = image_with_channel
 
-        #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
-        #plt.imshow(pc, cmap='viridis', interpolation='none')
-        #plt.colorbar(label='Value')
-        #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
-        #plt.show()
+        # #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
+        # #plt.imshow(pc, cmap='viridis', interpolation='none')
+        # #plt.colorbar(label='Value')
+        # #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
+        # #plt.show()
 
         neg_count = len(list(filter(lambda x: (x < 0), data.data)))
         total = len(data.data)
@@ -190,9 +190,9 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
     def set_rate_real_time(self, data):
         if (data.real_time_factor > 0):
-            self.update_rate_real = data.real_time_factor * 5
+            self.update_rate_real = data.real_time_factor * 10
         else:
-            self.update_rate_real = 5
+            self.update_rate_real = 10
 
 
     def _set_init_pose(self):
@@ -280,8 +280,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
     def _is_done(self, observations):
 
-        #for obs in observations['laser']:
-        for obs in self.obsLaser:
+        # for obs in self.obsLaser:
+        for obs in observations['laser']:
             if obs < self.min_laser_value / self.max_laser_value:
                 self._episode_done = True
 
@@ -292,42 +292,69 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
 
     def _compute_reward(self, observations, done):
-        self.cumulated_steps += 1
         d_opt = 0
         for cov in self.covariance:
             if cov > 0:
                 d_opt += math.log(cov)
-        #Stop divide by zero error
-        if len(self.covariance) == 0:
-            return 0
         d_opt = math.exp(d_opt / len(self.covariance))
+
+        reward = 0.001
         if not done:
-            obs_coverage = self.map_coverage
+            obs_coverage = observations['coverage'][0]
             delta_coverage = obs_coverage - self.last_coverage
-            self.last_coverage = obs_coverage
-            #Some new part of map is discovered
             if delta_coverage > 0:
-                #stop division by Zero
-                if (d_opt == 0):
-                    return 0
-                reward = math.tanh(1/d_opt)
-                self.cumulated_reward += reward
-                return reward
-            else:
-                #If nothing of map is discoverd -> no reward
-                return 0
+                reward = 1 + math.tanh(1/d_opt)
+
+            self.last_coverage = obs_coverage
         else:
-            #If robot crashed into reward no negative penalty because of driving circles
-            return 0 
+            reward = -100
             #reward = -1*self.end_episode_points
 
 
-        #print("reward=" + str(reward))
+        rospy.logdebug("reward=" + str(reward))
         self.cumulated_reward += reward
-        #print("Cumulated_reward=" + str(self.cumulated_reward))
-        #print("Cumulated_steps=" + str(self.cumulated_steps))
+        rospy.logdebug("Cumulated_reward=" + str(self.cumulated_reward))
+        self.cumulated_steps += 1
+        rospy.logdebug("Cumulated_steps=" + str(self.cumulated_steps))
 
         return reward
+        
+        # self.cumulated_steps += 1
+        # d_opt = 0
+        # for cov in self.covariance:
+        #     if cov > 0:
+        #         d_opt += math.log(cov)
+        # #Stop divide by zero error
+        # if len(self.covariance) == 0:
+        #     return 0
+        # d_opt = math.exp(d_opt / len(self.covariance))
+        # if not done:
+        #     obs_coverage = self.map_coverage
+        #     delta_coverage = obs_coverage - self.last_coverage
+        #     self.last_coverage = obs_coverage
+        #     #Some new part of map is discovered
+        #     if delta_coverage > 0:
+        #         #stop division by Zero
+        #         if (d_opt == 0):
+        #             return 0
+        #         reward = math.tanh(1/d_opt)
+        #         self.cumulated_reward += reward
+        #         return reward
+        #     else:
+        #         #If nothing of map is discoverd -> no reward
+        #         return 0
+        # else:
+        #     #If robot crashed into reward no negative penalty because of driving circles
+        #     return 0 
+        #     #reward = -1*self.end_episode_points
+
+
+        # #print("reward=" + str(reward))
+        # self.cumulated_reward += reward
+        # #print("Cumulated_reward=" + str(self.cumulated_reward))
+        # #print("Cumulated_steps=" + str(self.cumulated_steps))
+
+        # return reward
 
 
     # Internal TaskEnv Methods
@@ -360,9 +387,10 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         new_ranges = [discretized_ranges[4], discretized_ranges[5], discretized_ranges[0], discretized_ranges[2], discretized_ranges[3]]
 
-        #return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
-        self.obsLaser = new_ranges
-        return {"map": self.map}
+        return {"laser": new_ranges, "coverage": [self.map_coverage]}
+        # #return {"laser": new_ranges, "map": self.map, "pose":[self.x,self.y,self.orx,self.ory,self.orw]}
+        # self.obsLaser = new_ranges
+        # return {"map": self.map}
 
 
     def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):

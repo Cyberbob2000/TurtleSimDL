@@ -22,7 +22,7 @@ def main():
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
-        "policy_type": "MultiInputPolicy",
+        "policy_type": rospy.get_param('/turtlebot3/policy_type'),
         "total_timesteps": rospy.get_param('/turtlebot3/total_timesteps'),
         "n_steps_before_every_PPO_update": rospy.get_param('/turtlebot3/n_steps_before_every_PPO_update')
     }
@@ -79,7 +79,7 @@ def main():
         inited = True
         
     # rospy.logwarn("Start prediction...")
-    evaluate(model, env, inited)
+    # evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
@@ -99,7 +99,7 @@ def startModel(algorithm, env, run, config):
         buffer_size = 50000
         batch_size = 64
         gamma = 0.99
-        train_freq = (200, "step")
+        train_freq = (100, "step")
         if run:
             return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}")
         else:

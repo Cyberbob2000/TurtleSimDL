@@ -14,7 +14,8 @@ turtlebot3: #namespace
 
     # model parameters
     algorithm: "DQN" # DQN, PPO
-    total_timesteps: 20000
+    policy_type: "MlpPolicy" # MlpPolicy, MultiInputPolicy
+    total_timesteps: 500000
     n_steps_before_every_PPO_update: 500
     load_model: False
     continueTraining: False
