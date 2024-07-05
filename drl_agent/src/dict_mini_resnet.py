@@ -9,18 +9,18 @@ class DictMinimalResNet(BaseFeaturesExtractor):
         super(DictMinimalResNet, self).__init__(observation_space, features_dim)
         self.extractors = nn.ModuleDict()
         total_flattened_size = 0
-
+        
         # create a feature extractor for each key in the observation space
         for key, subspace in observation_space.spaces.items():
             assert isinstance(subspace, spaces.Box), f"Observation space for key {key} must be of type spaces.Box"
             self.extractors[key] = MinimalResNet(subspace, features_dim)
             total_flattened_size += features_dim
-
+        
         self.final_fc = nn.Sequential(
             nn.Linear(total_flattened_size, features_dim),
             nn.ReLU()
         )
-
+    
     def forward(self, observations: dict) -> th.Tensor:
         features = []
         for key, extractor in self.extractors.items():

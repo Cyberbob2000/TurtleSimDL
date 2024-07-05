@@ -9,8 +9,8 @@ from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
-from stable_baselines3.common.vec_env import DummyVecEnv
 from dict_mini_resnet import DictMinimalResNet
+
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
@@ -23,7 +23,7 @@ def main():
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
-        "policy_type": "MultiInputPolicy",
+        "policy_type": rospy.get_param('/turtlebot3/policy_type'),
         "total_timesteps": rospy.get_param('/turtlebot3/total_timesteps'),
         "n_steps_before_every_PPO_update": rospy.get_param('/turtlebot3/n_steps_before_every_PPO_update')
     }
@@ -50,8 +50,7 @@ def main():
             rospy.logwarn("Continue training")
             model = loadModelfunc(config["algorithm"], modelPath + "/model")
         else:
-            #model = DQN('MlpPolicy', env, verbose=1)
-            model = startModel(config["algorithm"], env, run, config)
+            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
         
         if use_wandb:
             print(modelPath)
@@ -93,31 +92,38 @@ def loadModelfunc(algorithm, modelPath):
         rospy.logwarn("No valid algorihtm!")
         return None
     
-def startModel(algorithm, env, run, config):
+def startModel(algorithm, env, run, config, use_resnet):
+    if use_resnet:
+        policy_kwargs = dict(
+            features_extractor_class=DictMinimalResNet,
+            features_extractor_kwargs=dict(features_dim=128),
+        )
+    else:
+        policy_kwargs = {}
+
     if algorithm == "DQN":
-        #TODO use Config Files
         learning_rate = 0.00100
         buffer_size = 50000
         batch_size = 64
         gamma = 0.99
         train_freq = (200, "step")
         if run:
-            return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}")
+            return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, tensorboard_log=f"runs/{run.id}", policy_kwargs=policy_kwargs)
         else:
-            return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1)
+            return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, policy_kwargs=policy_kwargs)
     elif algorithm =="PPO":
         if run:
-            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"])
+            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs)
         else:
-            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"])
+            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs)
     elif algorithm=="DDQN":
-        policy_kwargs = dict(n_quantiles=50, features_extractor_class=DictMinimalResNet, features_extractor_kwargs=dict(features_dim=128))
+        policy_kwargs["n_quantiles"] = 50
         if run:
-            return QRDQN("MultiInputPolicy", env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}", exploration_fraction = 0.1, exploration_final_eps=0.1)
+            return QRDQN(config["policy_type"], env, verbose=1, policy_kwargs=policy_kwargs, tensorboard_log=f"runs/{run.id}", exploration_fraction = 0.1, exploration_final_eps=0.1)
         else:
-            return QRDQN("MultiInputPolicy", env, policy_kwargs=policy_kwargs, verbose=1,  exploration_fraction = 0.1, exploration_final_eps=0.1)
+            return QRDQN(config["policy_type"], env, policy_kwargs=policy_kwargs, verbose=1,  exploration_fraction = 0.1, exploration_final_eps=0.1)
     else:
-        rospy.logwarn("No valid algorihtm!")
+        rospy.logwarn("No valid algorithm!")
         return None
 
 def evaluate(model, env, inited, num_episodes=10):
