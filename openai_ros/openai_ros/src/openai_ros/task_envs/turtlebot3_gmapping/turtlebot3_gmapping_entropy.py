@@ -319,7 +319,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 return 0
         else:
             #If robot crashed into reward no negative penalty because of driving circles
-            return 0 
+            return -2 
             #reward = -1*self.end_episode_points
 
 
