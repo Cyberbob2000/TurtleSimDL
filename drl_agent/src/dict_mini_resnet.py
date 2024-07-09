@@ -31,7 +31,7 @@ class DictMinimalResNet(BaseFeaturesExtractor):
 
 class DictImageNet(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Dict, features_dim: int = 256):
-        super(DictMinimalResNet, self).__init__(observation_space, features_dim)
+        super(DictImageNet, self).__init__(observation_space, features_dim)
 
         extractors = {}
         total_concat_size = 0
@@ -58,8 +58,7 @@ class DictImageNet(BaseFeaturesExtractor):
         self.extractors = nn.ModuleDict(extractors)
 
         # Update the features dim manually
-        self._features_dim = total_concat_size
-        
+        self._features_dim = features_dim
         self.final_fc = nn.Sequential(
             nn.Linear(total_concat_size, features_dim),
             nn.ReLU()
@@ -69,5 +68,6 @@ class DictImageNet(BaseFeaturesExtractor):
         features = []
         for key, extractor in self.extractors.items():
             features.append(extractor(observations[key]).squeeze())
-        concatenated_features = th.cat(features, dim=1)
+        #Probably need to change to dim = 1 if not only map
+        concatenated_features = th.cat(features, dim=0)
         return self.final_fc(concatenated_features)

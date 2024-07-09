@@ -9,7 +9,7 @@ from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
-from dict_mini_resnet import DictMinimalResNet
+from dict_mini_resnet import DictMinimalResNet, DictImageNet
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
@@ -112,9 +112,9 @@ def startModel(algorithm, env, run, config, use_resnet):
             return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, policy_kwargs=policy_kwargs)
     elif algorithm =="PPO":
         if run:
-            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs)
+            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs, batch_size=500)
         else:
-            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs)
+            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs,batch_size=500)
     elif algorithm=="DDQN":
         policy_kwargs["n_quantiles"] = 50
         if run:

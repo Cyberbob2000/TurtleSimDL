@@ -95,7 +95,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
         self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=1,
-                                            shape=(224,224,3), dtype=float)})
+                                            shape=(3,224,224), dtype=float)})
 
         #self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255,
         #                                    shape=(1,96,96), dtype=numpy.uint8)})
@@ -117,7 +117,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.map_coverage = 0
         self.map = numpy.zeros((96,96,1))
-        self.map_rgb = numpy.zeros((224,224,3))
+        self.map_rgb = numpy.zeros((3,224,224))
         self.last_coverage = 0
         rospy.Subscriber('/map', OccupancyGrid, self.subscriber_map)
 
@@ -204,8 +204,10 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         image_y_robot_rgb = round((self.y+10)/20 *384)
         map_rgb[1, (image_y_robot_rgb-2)%384:(image_y_robot_rgb+2)%384, (image_x_robot_rgb-2)%384:(image_x_robot_rgb+2)%384] = 255
         map_rgb[2, (image_y_robot_rgb+self.diry*3-2)%384:(image_y_robot_rgb+self.diry*3+2)%384, (image_x_robot_rgb+self.dirx*3-2)%384:(image_x_robot_rgb+self.dirx*3+2)%384] = 255
-        map_rgb = numpy.swapaxes(self.map_rgb,0,2)
-        map_rgb = numpy.swapaxes(self.map_rgb,0,1)
+        #activate for printing in plt. Code for image net requires (C, H, W)
+        #https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
+        #map_rgb = numpy.swapaxes(self.map_rgb,0,2)
+        #map_rgb = numpy.swapaxes(self.map_rgb,0,1)
         map_rgb = cv2.resize(self.map_rgb, dsize=(224, 224), interpolation=cv2.INTER_NEAREST)
         map_rgb = self.map_rgb/255.0
         self.map_rgb = map_rgb
