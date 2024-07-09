@@ -94,8 +94,8 @@ def loadModelfunc(algorithm, modelPath):
 def startModel(algorithm, env, run, config, use_resnet):
     if use_resnet:
         policy_kwargs = dict(
-            features_extractor_class=DictMinimalResNet,
-            features_extractor_kwargs=dict(features_dim=128),
+            features_extractor_class=DictImageNet,
+            features_extractor_kwargs=dict(features_dim=256),
         )
     else:
         policy_kwargs = {}

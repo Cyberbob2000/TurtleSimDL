@@ -6,5 +6,6 @@ feature_extractor = torch.nn.Sequential(*list(model_ft.children())[:-1])
 ### check this works
 x = torch.randn([1,3,224,224])
 output = feature_extractor(x) # output now has the features corresponding to input x
+output = output.squeeze()
 print(output.shape)
-print(output)
+#print(output)
