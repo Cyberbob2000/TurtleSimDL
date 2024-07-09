@@ -93,8 +93,9 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We only use two integers
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
-        self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255,
-                                            shape=(1, 96, 96), dtype=numpy.uint8)})
+        # self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'coverage': spaces.Box(low_coverage, high_coverage)})
+        # self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'map': spaces.Box(low=0, high=255, shape=(1, 96, 96), dtype=numpy.uint8)})
+        self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255, shape=(1, 96, 96), dtype=numpy.uint8)})
 
 
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
@@ -368,7 +369,10 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # plt.colorbar(label='Value')
         # plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
         # plt.show()
+        
         return {"map": self.map}
+        # return {"laser": new_ranges, "map": self.map}
+        # return {"laser": new_ranges, "coverage": [self.map_coverage]}
 
 
     def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):

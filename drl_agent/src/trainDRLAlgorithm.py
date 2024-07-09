@@ -10,6 +10,13 @@ from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
 from dict_mini_resnet import DictMinimalResNet
+
+from imitation.algorithms.adversarial.airl import AIRL
+from imitation.data import rollout
+from imitation.data.wrappers import RolloutInfoWrapper
+from imitation.rewards.reward_nets import BasicShapedRewardNet
+from imitation.util.networks import RunningNorm
+
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
@@ -19,6 +26,7 @@ def main():
     continueTraining = rospy.get_param('/turtlebot3/continueTraining')
     saveModel = rospy.get_param('/turtlebot3/saveModel')
     use_wandb = rospy.get_param('/turtlebot3/use_wandb')
+    use_seperate_nets = rospy.get_param('/turtlebot3/use_seperate_nets')
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
@@ -40,16 +48,43 @@ def main():
 
     env, modelPath = init(config["algorithm"])
 
-    if (loadModel):
+    if use_seperate_nets:
+        env = RolloutInfoWrapper(env)
+        expert = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
+
+    if loadModel:
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_480000_steps.zip")
+        model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
         inited = False
     else:
-        if (continueTraining):
+        if continueTraining:
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath + "/model")
+            model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
         else:
             model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
+        
+        if use_seperate_nets:
+            learner = model
+            rollouts = rollout.rollout(
+                expert,
+                env,
+                rollout.make_sample_until(min_episodes=60),
+                rng=np.random.default_rng(0)
+            )
+            reward_net = BasicShapedRewardNet(
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                normalize_input_layer=RunningNorm,
+            )
+            airl_trainer = AIRL(
+                demonstrations=rollouts,
+                demo_batch_size=2048,
+                gen_replay_buffer_capacity=512,
+                n_disc_updates_per_round=16,
+                venv=env,
+                gen_algo=learner,
+                reward_net=reward_net,
+            )
         
         if use_wandb:
             print(modelPath)
@@ -60,13 +95,21 @@ def main():
                             verbose=2,
                         )
             list_callback = CallbackList([checkpoint_callback,wandb_callback])
-            model.learn(total_timesteps=config["total_timesteps"],
+            if use_seperate_nets:
+                airl_trainer.train(total_timesteps=config["total_timesteps"],
                         callback=list_callback,
-            )
+                )
+            else:
+                model.learn(total_timesteps=config["total_timesteps"],
+                            callback=list_callback,
+                )
             run.finish()
             rospy.logwarn("Training finished")
         else:
-            model.learn(total_timesteps=config["total_timesteps"])
+            if use_seperate_nets:
+                airl_trainer.train(total_timesteps=config["total_timesteps"])
+            else:
+                model.learn(total_timesteps=config["total_timesteps"])
             
             rospy.logwarn("Training finished")
 
@@ -76,9 +119,10 @@ def main():
                 rospy.logwarn("Model saved")
                 
         inited = True
-        
-    # rospy.logwarn("Start prediction...")
-    evaluate(model, env, inited)
+    
+    if rospy.get_param('/turtlebot3/evaluate'):
+        rospy.logwarn("Start prediction...")
+        evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath):
     if algorithm == "DQN":
