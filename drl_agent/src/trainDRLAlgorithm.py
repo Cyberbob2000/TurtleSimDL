@@ -42,7 +42,7 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_480000_steps.zip")
+        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_160000_steps")
         inited = False
     else:
         if (continueTraining):
@@ -148,7 +148,7 @@ def evaluate(model, env, inited, num_episodes=10):
             
         done = False
         while not done:
-            action, _states = model.predict(obs, deterministic=True)
+            action, _states = model.predict(obs ,deterministic=True)
             obs, reward, done,_, info = env.step(action)
             episode_rewards.append(reward)
 
