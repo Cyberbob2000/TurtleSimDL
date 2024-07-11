@@ -95,7 +95,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
         self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=1,
-                                            shape=(3,224,224), dtype=float)})
+                                            shape=(3,224,224), dtype=float), 'laser': spaces.Box(low, high)})
 
         #self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255,
         #                                    shape=(1,96,96), dtype=numpy.uint8)})
@@ -421,7 +421,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # plt.colorbar(label='Value')
         # plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
         # plt.show()
-        return {"map": self.map_rgb}
+        return {"map": self.map_rgb, "laser": self.obsLaser}
 
 
     def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):
