@@ -30,7 +30,7 @@ class DictMinimalResNet(BaseFeaturesExtractor):
         return self.final_fc(concatenated_features)
 
 class DictImageNet(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Dict, features_dim: int = 256):
+    def __init__(self, observation_space: spaces.Dict, features_dim: int = 32):
         super(DictImageNet, self).__init__(observation_space, features_dim)
 
         extractors = {}
@@ -52,13 +52,14 @@ class DictImageNet(BaseFeaturesExtractor):
                 total_concat_size += 512
             elif key == "laser":
                 # Run through a simple MLP
+                #just dummy here
                 extractors[key] = nn.Linear(subspace.shape[0], 16)
-                total_concat_size += 16
+                total_concat_size += 0
 
         self.extractors = nn.ModuleDict(extractors)
 
-        # Update the features dim manually
-        self._features_dim = features_dim
+        # Update the features dim manually imagenet 32 plus 5laser
+        self._features_dim = features_dim+5
         self.final_fc = nn.Sequential(
             nn.Linear(total_concat_size, features_dim),
             nn.ReLU()
@@ -67,7 +68,11 @@ class DictImageNet(BaseFeaturesExtractor):
     def forward(self, observations: dict) -> th.Tensor:
         features = []
         for key, extractor in self.extractors.items():
-            features.append(extractor(observations[key]).squeeze())
+            if key == "map":
+                features.append(self.final_fc(extractor(observations[key]).squeeze()))
+            elif key == "laser":
+                features.append(observations[key].squeeze())
         #Probably need to change to dim = 1 if not only map
         concatenated_features = th.cat(features, dim=0)
-        return self.final_fc(concatenated_features)
+        print(concatenated_features)
+        return concatenated_features
