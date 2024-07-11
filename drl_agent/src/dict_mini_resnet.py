@@ -34,7 +34,6 @@ class DictImageNet(BaseFeaturesExtractor):
         super(DictImageNet, self).__init__(observation_space, features_dim)
 
         extractors = {}
-        total_concat_size = 0
         # We need to know size of the output of this extractor,
         # so go over all the spaces and compute output feature sizes
         for key, subspace in observation_space.spaces.items():
@@ -46,33 +45,28 @@ class DictImageNet(BaseFeaturesExtractor):
                 ### strip the last layer
                 for param in model_ft.parameters():
                     param.requires_grad = False
-                feature_extractor = th.nn.Sequential(*list(model_ft.children())[:-1])
+                feature_extractor = th.nn.Sequential(*list(model_ft.children())[:-1],nn.Flatten(), nn.Linear(512, features_dim), nn.ReLU(), nn.Flatten())
                 extractors[key] = feature_extractor
                 #image net without final layer gives 1x512x1x1 output
-                total_concat_size += 512
             elif key == "laser":
-                # Run through a simple MLP
-                #just dummy here
-                extractors[key] = nn.Linear(subspace.shape[0], 16)
-                total_concat_size += 0
+                # Flatten vector if needed
+                extractors[key] = nn.Flatten()
 
         self.extractors = nn.ModuleDict(extractors)
 
         # Update the features dim manually imagenet 32 plus 5laser
         self._features_dim = features_dim+5
-        self.final_fc = nn.Sequential(
-            nn.Linear(total_concat_size, features_dim),
-            nn.ReLU()
-        )
     
     def forward(self, observations: dict) -> th.Tensor:
         features = []
         for key, extractor in self.extractors.items():
             if key == "map":
-                features.append(self.final_fc(extractor(observations[key]).squeeze()))
+                t =extractor(observations[key])
+                features.append(t)
+                
             elif key == "laser":
-                features.append(observations[key].squeeze())
+                t2 = extractor(observations[key])
+                features.append(t2)
         #Probably need to change to dim = 1 if not only map
         concatenated_features = th.cat(features, dim=1)
-        print(concatenated_features)
         return concatenated_features
