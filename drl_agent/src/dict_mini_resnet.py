@@ -73,6 +73,6 @@ class DictImageNet(BaseFeaturesExtractor):
             elif key == "laser":
                 features.append(observations[key].squeeze())
         #Probably need to change to dim = 1 if not only map
-        concatenated_features = th.cat(features, dim=0)
+        concatenated_features = th.cat(features, dim=1)
         print(concatenated_features)
         return concatenated_features
