@@ -42,12 +42,12 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_80000_steps")
+        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_60000_steps")
         inited = False
     else:
         if (continueTraining):
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath + "/model")
+            model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_60000_steps", env)
         else:
             model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
         
@@ -80,11 +80,11 @@ def main():
     # rospy.logwarn("Start prediction...")
     evaluate(model, env, inited)
 
-def loadModelfunc(algorithm, modelPath):
+def loadModelfunc(algorithm, modelPath, env = None):
     if algorithm == "DQN":
         return DQN.load(modelPath)
     elif algorithm =="PPO":
-        return PPO.load(modelPath)
+        return PPO.load(modelPath, env=env)
     elif algorithm=="DDQN":
         return QRDQN.load(modelPath)
     else:
@@ -147,9 +147,12 @@ def evaluate(model, env, inited, num_episodes=10):
             
             
         done = False
-        while not done:
+        ended = False
+        while not done and not ended:
             action, _states = model.predict(obs )#,deterministic=True)
-            obs, reward, done,_, info = env.step(action)
+            obs, reward, done,ended, info = env.step(action)
+            print(f"Reward{reward}")
+            print(f"Summed Rewards{sum(episode_rewards)}")
             episode_rewards.append(reward)
 
         all_episode_rewards.append(sum(episode_rewards))
