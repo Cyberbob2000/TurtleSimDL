@@ -9,7 +9,7 @@ from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
-from dict_mini_resnet import DictMinimalResNet, DictImageNet
+from dict_mini_resnet import DictMinimalResNet, DictImageNet, DictImageNet5Channel
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
@@ -19,6 +19,7 @@ def main():
     continueTraining = rospy.get_param('/turtlebot3/continueTraining')
     saveModel = rospy.get_param('/turtlebot3/saveModel')
     use_wandb = rospy.get_param('/turtlebot3/use_wandb')
+    architecture = rospy.get_param('/turtlebot3/config')
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
@@ -42,14 +43,14 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_60000_steps")
+        model = loadModelfunc(config["algorithm"], "/root/catkin_ws/src/da-slam/drl_agent/training_results/PPO/rl_model_480000_steps", env)
         inited = False
     else:
         if (continueTraining):
             rospy.logwarn("Continue training")
             model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_60000_steps", env)
         else:
-            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
+            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'), architecture)
         
         if use_wandb:
             print(modelPath)
@@ -82,21 +83,27 @@ def main():
 
 def loadModelfunc(algorithm, modelPath, env = None):
     if algorithm == "DQN":
-        return DQN.load(modelPath)
+        return DQN.load(modelPath, env=env)
     elif algorithm =="PPO":
         return PPO.load(modelPath, env=env)
     elif algorithm=="DDQN":
-        return QRDQN.load(modelPath)
+        return QRDQN.load(modelPath, env=env)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
     
-def startModel(algorithm, env, run, config, use_resnet):
+def startModel(algorithm, env, run, config, use_resnet, architecture):
     if use_resnet:
-        policy_kwargs = dict(
-            features_extractor_class=DictImageNet,
-            features_extractor_kwargs=dict(features_dim=32),
-        )
+        if architecture == "DictImageNet":
+            policy_kwargs = dict(
+                features_extractor_class=DictImageNet,
+                features_extractor_kwargs=dict(features_dim=32),
+            )
+        elif architecture == "DictImageNet5Channel":
+            policy_kwargs = dict(
+                features_extractor_class=DictImageNet5Channel,
+                features_extractor_kwargs=dict(features_dim=32),
+            )
     else:
         policy_kwargs = {}
 

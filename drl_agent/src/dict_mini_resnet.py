@@ -45,6 +45,42 @@ class DictImageNet(BaseFeaturesExtractor):
                 ### strip the last layer
                 for param in model_ft.parameters():
                     param.requires_grad = False
+
+               # print("!!!!!!!!!!!!!!!!!!!!!!")
+
+               # print(*list(model_ft.children())[1:-1])
+                #print("!!!!!!!!!!!!!!!!!!!!!!")
+
+                feature_extractor = th.nn.Sequential(*list(model_ft.children())[:-1],nn.Flatten(), nn.Linear(512, features_dim), nn.ReLU(), nn.Flatten())
+                extractors[key] = feature_extractor
+                #image net without final layer gives 1x512x1x1 output
+            elif key == "laser":
+                # Flatten vector if needed
+                extractors[key] = nn.Flatten()
+
+        self.extractors = nn.ModuleDict(extractors)
+
+        # Update the features dim manually imagenet 32 plus 5laser
+        self._features_dim = features_dim+5
+
+class DictImageNet5Channel(BaseFeaturesExtractor):
+    def __init__(self, observation_space: spaces.Dict, features_dim: int = 32):
+        super(DictImageNet5Channel, self).__init__(observation_space, features_dim)
+
+        extractors = {}
+        # We need to know size of the output of this extractor,
+        # so go over all the spaces and compute output feature sizes
+        for key, subspace in observation_space.spaces.items():
+            if key == "map":
+                assert isinstance(subspace, spaces.Box), f"Observation space for key {key} must be of type spaces.Box"
+                model_ft = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.IMAGENET1K_V1)
+                ### strip the last layer
+                #for param in model_ft.parameters():
+                    #param.requires_grad = False
+                model_ft.conv1 = nn.Conv2d(
+                 5, out_channels=64, kernel_size=7, stride=2, padding=3, bias=False
+                )
+
                 feature_extractor = th.nn.Sequential(*list(model_ft.children())[:-1],nn.Flatten(), nn.Linear(512, features_dim), nn.ReLU(), nn.Flatten())
                 extractors[key] = feature_extractor
                 #image net without final layer gives 1x512x1x1 output

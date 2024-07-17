@@ -18,7 +18,8 @@ turtlebot3: #namespace
     total_timesteps: 500000
     n_steps_before_every_PPO_update: 500
     load_model: False
-    continueTraining: True
+    continueTraining: False
     saveModel: True   
     use_wandb: True
     use_resnet: True
+    config: "DictImageNet5Channel"
