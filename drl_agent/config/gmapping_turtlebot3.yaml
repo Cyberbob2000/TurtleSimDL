@@ -17,9 +17,9 @@ turtlebot3: #namespace
     policy_type: "MultiInputPolicy" # MlpPolicy, MultiInputPolicy
     total_timesteps: 500000
     n_steps_before_every_PPO_update: 500
-    load_model: False
+    load_model: True
     continueTraining: False
-    saveModel: True   
-    use_wandb: True
+    saveModel: False  
+    use_wandb: False
     use_resnet: True
     config: "DictImageNet5Channel"

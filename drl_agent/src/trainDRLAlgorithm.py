@@ -43,7 +43,7 @@ def main():
 
     if (loadModel):
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], "/root/catkin_ws/src/da-slam/drl_agent/training_results/PPO/rl_model_480000_steps", env)
+        model = loadModelfunc(config["algorithm"], "/root/catkin_ws/src/da-slam/drl_agent/training_results/PPO/rl5", env)
         inited = False
     else:
         if (continueTraining):
