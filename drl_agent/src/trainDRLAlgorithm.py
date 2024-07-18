@@ -7,19 +7,9 @@ import rospkg
 import rospy
 from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
-from openai_ros.task_envs.task_envs_list import RegisterOpenAI_Ros_Env
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
 from dict_mini_resnet import DictMinimalResNet
-
-from imitation.algorithms.adversarial.airl import AIRL
-from imitation.algorithms import bc
-from imitation.data import rollout
-from imitation.data.wrappers import RolloutInfoWrapper
-from imitation.rewards.reward_nets import BasicShapedRewardNet
-from imitation.util.networks import RunningNorm
-from stable_baselines3.common.env_util import make_vec_env
-# from imitation.util.util import make_vec_env
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -30,7 +20,6 @@ def main():
     continueTraining = rospy.get_param('/turtlebot3/continueTraining')
     saveModel = rospy.get_param('/turtlebot3/saveModel')
     use_wandb = rospy.get_param('/turtlebot3/use_wandb')
-    use_seperate_nets = rospy.get_param('/turtlebot3/use_seperate_nets')
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
@@ -50,7 +39,7 @@ def main():
             # save_code=True,  # optional
         )
 
-    env, modelPath = init(config["algorithm"], use_seperate_nets)
+    env, modelPath = init(config["algorithm"])
     
     if loadModel:
         rospy.logwarn("Loading Model...")
@@ -62,41 +51,6 @@ def main():
             model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
         else:
             model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
-            
-        if use_seperate_nets:
-            learner = model
-            expert = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'), env=env)
-            rng = np.random.default_rng(0)
-            
-            rollouts = rollout.rollout(
-                expert,
-                env,
-                rollout.make_sample_until(min_episodes=1),
-                rng=rng
-            )
-            transitions = rollout.flatten_trajectories(rollouts)
-            print("ROLLOUT DONE!!!")
-            reward_net = BasicShapedRewardNet(
-                observation_space=env.observation_space,
-                action_space=env.action_space,
-                normalize_input_layer=RunningNorm,
-            )
-            airl_trainer = AIRL(
-                demonstrations=rollouts,
-                demo_batch_size=2,
-                gen_replay_buffer_capacity=512,
-                n_disc_updates_per_round=16,
-                venv=env,
-                gen_algo=learner,
-                reward_net=reward_net,
-            )
-            # bc_trainer = bc.BC(
-            #     observation_space=env.observation_space,
-            #     action_space=env.action_space,
-            #     demonstrations=transitions,
-            #     rng=rng,
-            #     batch_size=16
-            # )
         
         if use_wandb:
             checkpoint_callback = CheckpointCallback(save_freq=20000, save_path=modelPath,
@@ -106,24 +60,13 @@ def main():
                             verbose=2,
                         )
             list_callback = CallbackList([checkpoint_callback,wandb_callback])
-            if use_seperate_nets:
-                airl_trainer.train(total_timesteps=config["total_timesteps"],
+            model.learn(total_timesteps=config["total_timesteps"],
                         callback=list_callback,
-                )
-                # bc_trainer.train(n_epochs=1, on_batch_end=list_callback)
-            else:
-                model.learn(total_timesteps=config["total_timesteps"],
-                            callback=list_callback,
-                )
+            )
             run.finish()
             rospy.logwarn("Training finished")
         else:
-            if use_seperate_nets:
-                print("Start training AIRL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                airl_trainer.train(total_timesteps=config["total_timesteps"])
-                # bc_trainer.train(n_epochs=1)
-            else:
-                model.learn(total_timesteps=config["total_timesteps"])
+            model.learn(total_timesteps=config["total_timesteps"])
             
             rospy.logwarn("Training finished")
 
@@ -140,11 +83,11 @@ def main():
 
 def loadModelfunc(algorithm, modelPath, env = None):
     if algorithm == "DQN":
-        return DQN.load(modelPath)
+        return DQN.load(modelPath, env=env)
     elif algorithm =="PPO":
         return PPO.load(modelPath, env=env)
     elif algorithm=="DDQN":
-        return QRDQN.load(modelPath)
+        return QRDQN.load(modelPath, env=env)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None
@@ -217,22 +160,10 @@ def evaluate(model, env, inited, num_episodes=10):
 
     return mean_episode_reward
 
-def init(algorithm, use_seperate_nets):
+def init(algorithm):
     rospy.init_node('example_turtlebot3_maze_qlearn', anonymous=True, log_level=rospy.WARN)
     task_and_robot_environment_name = rospy.get_param('/turtlebot3/task_and_robot_environment_name')
-    if use_seperate_nets:
-        RegisterOpenAI_Ros_Env(task_env=task_and_robot_environment_name,
-                                    max_episode_steps=1000)
-        
-        env = make_vec_env(
-            task_and_robot_environment_name,
-            # rng=np.random.default_rng(0),
-            n_envs=1,
-            wrapper_class=RolloutInfoWrapper,  # to compute rollouts
-        )
-        # env.seed(0)
-    else:
-        env = StartOpenAI_ROS_Environment(task_and_robot_environment_name)
+    env = StartOpenAI_ROS_Environment(task_and_robot_environment_name)
 
     rospack = rospkg.RosPack()
     pkg_path = rospack.get_path('drl_agent')

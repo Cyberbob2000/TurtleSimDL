@@ -22,7 +22,6 @@ turtlebot3: #namespace
     saveModel: True
     use_wandb: True
     use_resnet: False
-    use_seperate_nets: False
     evaluate: False
 
     # load model path
