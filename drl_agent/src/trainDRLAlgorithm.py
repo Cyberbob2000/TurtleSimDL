@@ -10,11 +10,12 @@ from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
 from dict_mini_resnet import DictMinimalResNet
+
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
 
-def main():   
+def main():
     loadModel = rospy.get_param('/turtlebot3/load_model')
     continueTraining = rospy.get_param('/turtlebot3/continueTraining')
     saveModel = rospy.get_param('/turtlebot3/saveModel')
@@ -39,20 +40,19 @@ def main():
         )
 
     env, modelPath = init(config["algorithm"])
-
-    if (loadModel):
+    
+    if loadModel:
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_480000_steps.zip")
+        model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
         inited = False
     else:
-        if (continueTraining):
+        if continueTraining:
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath + "/model")
+            model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
         else:
             model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
         
         if use_wandb:
-            print(modelPath)
             checkpoint_callback = CheckpointCallback(save_freq=20000, save_path=modelPath,
                                          name_prefix='rl_model')
             wandb_callback = WandbCallback(
@@ -76,17 +76,18 @@ def main():
                 rospy.logwarn("Model saved")
                 
         inited = True
-        
-    # rospy.logwarn("Start prediction...")
-    evaluate(model, env, inited)
+    
+    if rospy.get_param('/turtlebot3/evaluate'):
+        rospy.logwarn("Start prediction...")
+        evaluate(model, env, inited)
 
-def loadModelfunc(algorithm, modelPath):
+def loadModelfunc(algorithm, modelPath, env = None):
     if algorithm == "DQN":
-        return DQN.load(modelPath)
+        return DQN.load(modelPath, env=env)
     elif algorithm =="PPO":
-        return PPO.load(modelPath)
+        return PPO.load(modelPath, env=env)
     elif algorithm=="DDQN":
-        return QRDQN.load(modelPath)
+        return QRDQN.load(modelPath, env=env)
     else:
         rospy.logwarn("No valid algorihtm!")
         return None

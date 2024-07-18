@@ -1,8 +1,8 @@
 import rospy
 import numpy
-from gym import spaces
+from gymnasium import spaces
 from openai_ros.robot_envs import turtlebot3_env
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from geometry_msgs.msg import Vector3
 from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
 from openai_ros.openai_ros_common import ROSLauncher
