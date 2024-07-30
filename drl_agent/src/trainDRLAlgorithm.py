@@ -10,11 +10,12 @@ from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
 from dict_mini_resnet import DictMinimalResNet, DictImageNet, DictImageNet5Channel
+
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import CallbackList,CheckpointCallback
 
-def main():   
+def main():
     loadModel = rospy.get_param('/turtlebot3/load_model')
     continueTraining = rospy.get_param('/turtlebot3/continueTraining')
     saveModel = rospy.get_param('/turtlebot3/saveModel')
@@ -40,20 +41,19 @@ def main():
         )
 
     env, modelPath = init(config["algorithm"])
-
-    if (loadModel):
+    
+    if loadModel:
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], "/root/catkin_ws/src/da-slam/drl_agent/training_results/PPO/rl5", env)
+        model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'), env)
         inited = False
     else:
-        if (continueTraining):
+        if continueTraining:
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath + "/rl_model_60000_steps", env)
+            model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'), env)
         else:
             model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'), architecture)
         
         if use_wandb:
-            print(modelPath)
             checkpoint_callback = CheckpointCallback(save_freq=20000, save_path=modelPath,
                                          name_prefix='rl_model')
             wandb_callback = WandbCallback(
@@ -77,9 +77,10 @@ def main():
                 rospy.logwarn("Model saved")
                 
         inited = True
-        
-    # rospy.logwarn("Start prediction...")
-    evaluate(model, env, inited)
+    
+    if rospy.get_param('/turtlebot3/evaluate'):
+        rospy.logwarn("Start prediction...")
+        evaluate(model, env, inited)
 
 def loadModelfunc(algorithm, modelPath, env = None):
     if algorithm == "DQN":
@@ -119,9 +120,9 @@ def startModel(algorithm, env, run, config, use_resnet, architecture):
             return DQN(config["policy_type"], env, learning_rate=learning_rate, buffer_size=buffer_size, batch_size=batch_size, gamma=gamma, train_freq = train_freq, verbose=1, policy_kwargs=policy_kwargs)
     elif algorithm =="PPO":
         if run:
-            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs, batch_size=64)
+            return PPO(config["policy_type"], env, verbose=1, tensorboard_log=f"runs/{run.id}", n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs)
         else:
-            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs,batch_size=64)
+            return PPO(config["policy_type"], env, verbose=1, n_steps = config["n_steps_before_every_PPO_update"], policy_kwargs=policy_kwargs)
     elif algorithm=="DDQN":
         policy_kwargs["n_quantiles"] = 50
         if run:

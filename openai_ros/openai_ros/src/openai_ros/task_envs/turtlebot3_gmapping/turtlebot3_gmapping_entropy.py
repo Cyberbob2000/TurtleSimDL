@@ -67,6 +67,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         """
         #Set architecture of feature extractor and observation size (DictImageNet5Channel, DictImageNet)
         self.config = rospy.get_param('/turtlebot3/config')
+        self.use_resnet = rospy.get_param('/turtlebot3/use_resnet')
 
         # Actions and Observations
         self.linear_forward_speed = rospy.get_param('/turtlebot3/linear_forward_speed')
@@ -78,6 +79,9 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         self.new_ranges = rospy.get_param('/turtlebot3/new_ranges')
 
         self.reset_gmapping = rospy.Publisher('/reset_gmapping', String, queue_size=10)
+        
+        # Read out wether to use reward fuction discounting
+        self.reward_discount = rospy.get_param('/turtlebot3/reward_discount')
 
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
@@ -96,16 +100,25 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We only use two integers
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
-        #This config = 3 for the imagenet laser working config
-        if self.config == "DictImageNet5Channel":
-            channels = 5
-        elif self.config == "DictImageNet":
-            channels = 3
-        self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=1,
-                                            shape=(channels,224,224), dtype=float), 'laser': spaces.Box(low, high)})
-
-        #self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255,
-        #                                    shape=(1,96,96), dtype=numpy.uint8)})
+        if self.use_resnet:
+            #This config = 3 for the imagenet laser working config
+            if self.config == "DictImageNet5Channel":
+                channels = 5
+            elif self.config == "DictImageNet":
+                channels = 3
+            high_map = 1
+            dtype = float
+            size = 224
+        else:
+            channels = 1
+            high_map = 255
+            dtype = numpy.uint8
+            size = 96
+            
+        # self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'coverage': spaces.Box(low_coverage, high_coverage)})
+        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'map': spaces.Box(low=0, high=high_map, shape=(channels, size, size), dtype=dtype)})
+        # self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=high_map, shape=(channels, size, size), dtype=dtype)})
+        
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
@@ -117,7 +130,6 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.pub_closing = rospy.Publisher('/custom/closing', Bool, queue_size=20)
 
-        self.cumulated_steps = 0.0
         self.laser_filtered_pub = rospy.Publisher('/turtlebot3/laser/scan_filtered', LaserScan, queue_size=1)
         self.update_rate_real = 5
         rospy.Subscriber("/gazebo/performance_metrics", PerformanceMetrics, self.set_rate_real_time)
@@ -172,7 +184,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         np.ndarray: Resized image of shape (new_height, new_width)
         """
         original_height, original_width = image.shape
-        resized_image = np.zeros((new_height, new_width))
+        resized_image = numpy.zeros((new_height, new_width))
         
         # Calculate the size of each block in the original image that will map to a pixel in the new image
         block_height = original_height / new_height
@@ -188,7 +200,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 
                 # Extract the block and find the max value
                 block = image[start_i:end_i, start_j:end_j]
-                max_value = np.max(block)
+                max_value = numpy.max(block)
                 
                 # Assign the max value to the corresponding pixel in the resized image
                 resized_image[i, j] = max_value
@@ -202,6 +214,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         map_g = numpy.zeros(pc.shape, dtype = numpy.uint8)
         map_g[pc == 0] = 1
         map_g[pc == -1] = 0
+        map_g = map_g.astype(numpy.uint8)
         map_g[pc == 100] = 50
 
         map_rgb = numpy.zeros((3,pc.shape[0],pc.shape[1]))
@@ -228,6 +241,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         map_rgb5 = self.map_rgb5/255.0
         self.map_rgb = map_rgb
         self.map_rgb5 = map_rgb5
+        
         #now map_g has 0 for unknown, 125 for free and 255 for occupied
         map_g = map_g.reshape(96, 4, 96, 4).max(axis=(1, 3))
         image_x_robot = round((self.x+10)/20 * 96)
@@ -290,6 +304,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.sleep(1.5)
 
         self.cumulated_reward = 0.0
+        self.cumulated_steps = 0.0
         self.map_coverage = 0
         self.last_coverage = 0
         self.save_action = 0
@@ -339,11 +354,13 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We get the laser scan data
         laser_scan = self.get_laser_scan()
 
-        self.discretize_scan_observation(laser_scan,self.new_ranges)
-        if(self.config == "DictImageNet5Channel"):
-            discretized_observations =  {"map": self.map_rgb5, "laser": self.obsLaser}
-        elif self.config == "DictImageNet":
-            discretized_observations =  {"map": self.map_rgb, "laser": self.obsLaser}
+        discretized_observations = self.discretize_scan_observation(laser_scan, self.new_ranges)
+        if self.use_resnet:
+            if(self.config == "DictImageNet5Channel"):
+                discretized_observations =  {"map": self.map_rgb5, "laser": self.obsLaser}
+            elif self.config == "DictImageNet":
+                discretized_observations =  {"map": self.map_rgb, "laser": self.obsLaser}
+            
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
         return discretized_observations
@@ -382,8 +399,12 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 #if (d_opt == 0):
                     #return 0
                 reward = delta_coverage #math.tanh(1/d_opt)
+
+                # Discount reward if he takes too long
+                if self.reward_discount != 1.0:
+                    reward = reward * (self.reward_discount ** self.cumulated_steps)
+                
                 self.cumulated_reward += reward
-                #print(f"Sum Reward episode: {self.cumulated_reward}")
                 return reward
             else:
                 #If nothing of map is discoverd -> no reward
@@ -392,14 +413,6 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             #If robot crashed into reward no negative penalty because of driving circles
             return 0
             #reward = -1*self.end_episode_points
-
-
-        #print("reward=" + str(reward))
-        self.cumulated_reward += reward
-        #print("Cumulated_reward=" + str(self.cumulated_reward))
-        #print("Cumulated_steps=" + str(self.cumulated_steps))
-
-        return reward
 
 
     # Internal TaskEnv Methods
@@ -439,8 +452,10 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # plt.colorbar(label='Value')
         # plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
         # plt.show()
-        #change to self.map_rgb if original laser imagenet is wished
         
+        # return {"map": self.map}
+        return {"laser": new_ranges, "map": self.map}
+        # return {"laser": new_ranges, "coverage": [self.map_coverage]}
 
 
     def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):

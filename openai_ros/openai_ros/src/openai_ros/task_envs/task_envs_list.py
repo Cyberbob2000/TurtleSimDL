@@ -227,10 +227,10 @@ def RegisterOpenAI_Ros_Env(task_env, max_episode_steps=100000):
         # We check that it was really registered
         supported_gym_envs = GetAllRegisteredGymEnvs()
         #print("REGISTERED GYM ENVS===>"+str(supported_gym_envs))
-        print ("Test12345")
-        print(supported_gym_envs)
-        print(task_env in supported_gym_envs)
-        print("Test12345")
+        # print ("Test12345")
+        # print(supported_gym_envs)
+        # print(task_env in supported_gym_envs)
+        # print("Test12345")
         assert (task_env in supported_gym_envs), "The Task_Robot_ENV given is not Registered ==>" + \
             str(task_env)
 

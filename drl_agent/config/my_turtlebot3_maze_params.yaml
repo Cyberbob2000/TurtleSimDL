@@ -13,7 +13,7 @@ turtlebot3: #namespace
     nsteps: 1000
 
     # model parameters
-    algorithm: "DQN" # DQN, PPO
+    algorithm: "PPO" # DQN, PPO
     policy_type: "MultiInputPolicy" # MlpPolicy, MultiInputPolicy
     total_timesteps: 20000
     n_steps_before_every_PPO_update: 500
@@ -22,3 +22,7 @@ turtlebot3: #namespace
     saveModel: True
     use_wandb: True
     use_resnet: False
+    evaluate: False
+
+    # load model path
+    load_model_path: "/PPO_laser_rl_model_260000_steps"
