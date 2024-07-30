@@ -112,7 +112,6 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.pub_closing = rospy.Publisher('/custom/closing', Bool, queue_size=20)
 
-        self.cumulated_steps = 0.0
         self.laser_filtered_pub = rospy.Publisher('/turtlebot3/laser/scan_filtered', LaserScan, queue_size=1)
         self.update_rate_real = 5
         rospy.Subscriber("/gazebo/performance_metrics", PerformanceMetrics, self.set_rate_real_time)
@@ -224,6 +223,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         rospy.sleep(1.5)
 
         self.cumulated_reward = 0.0
+        self.cumulated_steps = 0.0
         self.map_coverage = 0
         self.last_coverage = 0
         self.save_action = 0
@@ -327,7 +327,7 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
                 return 0
         else:
             #If robot crashed into reward no negative penalty because of driving circles
-            return -2
+            return 0
             #reward = -1*self.end_episode_points
 
 
