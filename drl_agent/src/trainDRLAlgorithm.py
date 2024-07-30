@@ -9,7 +9,7 @@ from gymnasium import wrappers
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 from stable_baselines3 import DQN, PPO
 from sb3_contrib import QRDQN
-from dict_mini_resnet import DictMinimalResNet
+from dict_mini_resnet import DictMinimalResNet, DictImageNet, DictImageNet5Channel
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -20,6 +20,7 @@ def main():
     continueTraining = rospy.get_param('/turtlebot3/continueTraining')
     saveModel = rospy.get_param('/turtlebot3/saveModel')
     use_wandb = rospy.get_param('/turtlebot3/use_wandb')
+    architecture = rospy.get_param('/turtlebot3/config')
     
     config = {
         "algorithm": rospy.get_param('/turtlebot3/algorithm'),
@@ -43,14 +44,14 @@ def main():
     
     if loadModel:
         rospy.logwarn("Loading Model...")
-        model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
+        model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'), env)
         inited = False
     else:
         if continueTraining:
             rospy.logwarn("Continue training")
-            model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'))
+            model = loadModelfunc(config["algorithm"], modelPath + rospy.get_param('/turtlebot3/load_model_path'), env)
         else:
-            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'))
+            model = startModel(config["algorithm"], env, run, config, rospy.get_param('/turtlebot3/use_resnet'), architecture)
         
         if use_wandb:
             checkpoint_callback = CheckpointCallback(save_freq=20000, save_path=modelPath,
@@ -92,12 +93,18 @@ def loadModelfunc(algorithm, modelPath, env = None):
         rospy.logwarn("No valid algorihtm!")
         return None
     
-def startModel(algorithm, env, run, config, use_resnet):
+def startModel(algorithm, env, run, config, use_resnet, architecture):
     if use_resnet:
-        policy_kwargs = dict(
-            features_extractor_class=DictMinimalResNet,
-            features_extractor_kwargs=dict(features_dim=128),
-        )
+        if architecture == "DictImageNet":
+            policy_kwargs = dict(
+                features_extractor_class=DictImageNet,
+                features_extractor_kwargs=dict(features_dim=32),
+            )
+        elif architecture == "DictImageNet5Channel":
+            policy_kwargs = dict(
+                features_extractor_class=DictImageNet5Channel,
+                features_extractor_kwargs=dict(features_dim=32),
+            )
     else:
         policy_kwargs = {}
 
@@ -148,9 +155,12 @@ def evaluate(model, env, inited, num_episodes=10):
             
             
         done = False
-        while not done:
-            action, _states = model.predict(obs, deterministic=True)
-            obs, reward, done,_, info = env.step(action)
+        ended = False
+        while not done and not ended:
+            action, _states = model.predict(obs )#,deterministic=True)
+            obs, reward, done,ended, info = env.step(action)
+            print(f"Reward{reward}")
+            print(f"Summed Rewards{sum(episode_rewards)}")
             episode_rewards.append(reward)
 
         all_episode_rewards.append(sum(episode_rewards))

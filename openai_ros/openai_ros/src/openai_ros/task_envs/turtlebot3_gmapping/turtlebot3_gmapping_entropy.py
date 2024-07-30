@@ -15,7 +15,8 @@ from nav_msgs.msg import Odometry
 import math
 from std_msgs.msg import Float64, Bool
 import ros_numpy
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+import cv2
 
 class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
@@ -64,6 +65,9 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
             round(yaw, 1),
         ]
         """
+        #Set architecture of feature extractor and observation size (DictImageNet5Channel, DictImageNet)
+        self.config = rospy.get_param('/turtlebot3/config')
+        self.use_resnet = rospy.get_param('/turtlebot3/use_resnet')
 
         # Actions and Observations
         self.linear_forward_speed = rospy.get_param('/turtlebot3/linear_forward_speed')
@@ -96,11 +100,25 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We only use two integers
         
         #self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'entropy': spaces.Box(low_coverage, high_coverage), 'coverage': spaces.Box(low_coverage, high_coverage)})
+        if self.use_resnet:
+            #This config = 3 for the imagenet laser working config
+            if self.config == "DictImageNet5Channel":
+                channels = 5
+            elif self.config == "DictImageNet":
+                channels = 3
+            high_map = 1
+            dtype = float
+            size = 224
+        else:
+            channels = 1
+            high_map = 255
+            dtype = numpy.uint8
+            size = 96
+            
         # self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'coverage': spaces.Box(low_coverage, high_coverage)})
-        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'map': spaces.Box(low=0, high=255, shape=(1, 96, 96), dtype=numpy.uint8)})
-        # self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=255, shape=(1, 96, 96), dtype=numpy.uint8)})
-
-
+        self.observation_space = spaces.Dict({'laser': spaces.Box(low, high), 'map': spaces.Box(low=0, high=high_map, shape=(channels, size, size), dtype=dtype)})
+        # self.observation_space = spaces.Dict({'map': spaces.Box(low=0, high=high_map, shape=(channels, size, size), dtype=dtype)})
+        
         rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
@@ -118,6 +136,8 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
 
         self.map_coverage = 0
         self.map = numpy.zeros((96,96,1))
+        self.map_rgb = numpy.zeros((3,224,224))
+        self.map_rgb5 = numpy.zeros((5,224,224))
         self.last_coverage = 0
         rospy.Subscriber('/map', OccupancyGrid, self.subscriber_map)
 
@@ -151,29 +171,90 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         #print(f"Direction:Z:{2*(self.orx*self.orz-self.orw*self.ory)}")
         #print(f"Direction:{self.dirx},{self.diry}")
 
+    def resize_with_max_interpolation(image, new_height, new_width):
+        """
+        Resize a (H, W) image to (new_height, new_width) using max interpolation.
+        
+        Parameters:
+        image (np.ndarray): Input image of shape (H, W)
+        new_height (int): Height of the resized image
+        new_width (int): Width of the resized image
+        
+        Returns:
+        np.ndarray: Resized image of shape (new_height, new_width)
+        """
+        original_height, original_width = image.shape
+        resized_image = numpy.zeros((new_height, new_width))
+        
+        # Calculate the size of each block in the original image that will map to a pixel in the new image
+        block_height = original_height / new_height
+        block_width = original_width / new_width
+        
+        for i in range(new_height):
+            for j in range(new_width):
+                # Calculate the boundaries of the block in the original image
+                start_i = int(i * block_height)
+                end_i = int((i + 1) * block_height)
+                start_j = int(j * block_width)
+                end_j = int((j + 1) * block_width)
+                
+                # Extract the block and find the max value
+                block = image[start_i:end_i, start_j:end_j]
+                max_value = numpy.max(block)
+                
+                # Assign the max value to the corresponding pixel in the resized image
+                resized_image[i, j] = max_value
+        
+        return resized_image
 
     def subscriber_map(self, data):
         #numpy array 384x384 with -1 for unknown, 100, for occupied and 0 for free
         pc = ros_numpy.numpify(data)
         pc = pc.filled(-1)
-        pc[pc == 0] = 1
-        pc[pc == -1] = 0
-        pc = pc.astype(numpy.uint8)
-        pc[pc == 100] = 50
+        map_g = numpy.zeros(pc.shape, dtype = numpy.uint8)
+        map_g[pc == 0] = 1
+        map_g[pc == -1] = 0
+        map_g = map_g.astype(numpy.uint8)
+        map_g[pc == 100] = 50
 
-        #now pc has 0 for unknown, 125 for free and 255 for occupied
-        pc = pc.reshape(96, 4, 96, 4).max(axis=(1, 3))
+        map_rgb = numpy.zeros((3,pc.shape[0],pc.shape[1]))
+        map_rgb5 = numpy.zeros((5,pc.shape[0],pc.shape[1]))
+        map_rgb[0][pc == 0] = 120 #free
+        map_rgb[0][pc == -1] = 0 #unkown
+        map_rgb[0][pc == 100] = 255 #occupied
+        map_rgb5[0][pc == 0]= 255
+        map_rgb5[1][pc == -1]= 255
+        map_rgb5[2][pc == 100]= 255
+        image_x_robot_rgb = round((self.x+10)/20 * 384)
+        image_y_robot_rgb = round((self.y+10)/20 *384)
+        map_rgb[1, (image_y_robot_rgb-2)%384:(image_y_robot_rgb+2)%384, (image_x_robot_rgb-2)%384:(image_x_robot_rgb+2)%384] = 255
+        map_rgb[2, (image_y_robot_rgb+self.diry*3-2)%384:(image_y_robot_rgb+self.diry*3+2)%384, (image_x_robot_rgb+self.dirx*3-2)%384:(image_x_robot_rgb+self.dirx*3+2)%384] = 255
+        map_rgb5[3, (image_y_robot_rgb-2)%384:(image_y_robot_rgb+2)%384, (image_x_robot_rgb-2)%384:(image_x_robot_rgb+2)%384] = 255
+        map_rgb5[4, (image_y_robot_rgb+self.diry*3-2)%384:(image_y_robot_rgb+self.diry*3+2)%384, (image_x_robot_rgb+self.dirx*3-2)%384:(image_x_robot_rgb+self.dirx*3+2)%384] = 255
+        #activate for printing in plt. Code for image net requires (C, H, W)
+        #https://pytorch.org/vision/main/models/generated/torchvision.models.resnet18.html
+        #map_rgb = numpy.swapaxes(self.map_rgb,0,2)
+        #map_rgb = numpy.swapaxes(self.map_rgb,0,1)
+        map_rgb = cv2.resize(self.map_rgb, dsize=(224, 224), interpolation=cv2.INTER_NEAREST)
+        map_rgb = self.map_rgb/255.0
+        map_rgb5 = cv2.resize(self.map_rgb5, dsize=(224, 224), interpolation=cv2.INTER_NEAREST)
+        map_rgb5 = self.map_rgb5/255.0
+        self.map_rgb = map_rgb
+        self.map_rgb5 = map_rgb5
+        
+        #now map_g has 0 for unknown, 125 for free and 255 for occupied
+        map_g = map_g.reshape(96, 4, 96, 4).max(axis=(1, 3))
         image_x_robot = round((self.x+10)/20 * 96)
         image_y_robot = round((self.y+10)/20 *96)
-        pc[image_y_robot, image_x_robot] = 255
+        map_g[image_y_robot, image_x_robot] = 255
         #This paints the direction the robot is heading to, it should not come to the case of taking modulu here but need to rework this
         #add extra dimension to map, so stable baselines recognizes it as 1 channel 0-255 greyscale image
-        pc[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 200
-        image_with_channel = numpy.expand_dims(pc, axis=0)
+        map_g[(image_y_robot+self.diry)%96,(image_x_robot+self.dirx)%96] = 200
+        image_with_channel = numpy.expand_dims(map_g, axis=0)
         self.map = image_with_channel
 
         #plt.figure(figsize=(10, 10))  # Optional: To make the plot larger
-        #plt.imshow(pc, cmap='viridis', interpolation='none')
+        #plt.imshow(self.map_rgb[:,:,:], cmap='viridis', interpolation='none')
         #plt.colorbar(label='Value')
         #plt.grid(which='both', color='grey', linestyle='-', linewidth=0.5)
         #plt.show()
@@ -273,10 +354,13 @@ class GmappingTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
         # We get the laser scan data
         laser_scan = self.get_laser_scan()
 
-        discretized_observations = self.discretize_scan_observation(    laser_scan,
-                                                                        self.new_ranges
-                                                                        )
-
+        discretized_observations = self.discretize_scan_observation(laser_scan, self.new_ranges)
+        if self.use_resnet:
+            if(self.config == "DictImageNet5Channel"):
+                discretized_observations =  {"map": self.map_rgb5, "laser": self.obsLaser}
+            elif self.config == "DictImageNet":
+                discretized_observations =  {"map": self.map_rgb, "laser": self.obsLaser}
+            
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
         return discretized_observations

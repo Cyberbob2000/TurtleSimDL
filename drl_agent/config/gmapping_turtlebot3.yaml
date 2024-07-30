@@ -21,7 +21,8 @@ turtlebot3: #namespace
     continueTraining: False
     saveModel: True
     use_wandb: True
-    use_resnet: False
+    use_resnet: True
+    config: "DictImageNet5Channel"
     evaluate: False
     reward_discount: 0.993 # 1.0 if not used, else around 0.993
 

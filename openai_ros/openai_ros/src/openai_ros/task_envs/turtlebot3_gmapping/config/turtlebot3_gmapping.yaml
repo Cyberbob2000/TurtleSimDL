@@ -20,5 +20,4 @@ turtlebot3: #namespace
     forwards_reward: 1 # Points Given to go forwards
     turn_reward: 0.2 # Points Given to turn as action
     end_episode_points: 10 # Points given when ending an episode
-    
 
